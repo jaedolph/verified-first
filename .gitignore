@@ -1,0 +1,7 @@
+node_modules/
+ebs/venv
+*.egg-info
+*.db
+*.log
+*.env
+__pycache__/

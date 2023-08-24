@@ -1,0 +1,32 @@
+
+[project]
+name = "verifiedfirst"
+description = "Backend for Verified First twitch extension"
+version = "0.1.1"
+authors = [
+    { name = "Jaedolph - Lord of Games" }
+]
+dependencies = [
+    "flask",
+    "Flask-SQLAlchemy",
+    "requests",
+]
+
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["verifiedfirst"]
+
+[tool.black]
+line-length = 100
+
+[tool.docformatter]
+wrap-summaries = 100
+wrap-descriptions = 100
+
+[tool.pylint]
+load-plugins = ["pylint.extensions.docparams", "pylint.extensions.docstyle"]
+max-args = 10
+max-attributes = 10

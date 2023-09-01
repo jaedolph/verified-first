@@ -10,6 +10,7 @@ dependencies = [
     "flask",
     "Flask-SQLAlchemy",
     "requests",
+    "pyjwt[crypto]",
 ]
 
 [build-system]

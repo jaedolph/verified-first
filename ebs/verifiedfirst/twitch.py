@@ -5,8 +5,6 @@ from verifiedfirst.config import Config
 from verifiedfirst.models.broadcasters import Broadcaster
 from verifiedfirst.models.firsts import First
 from collections import defaultdict
-import hmac
-import hashlib
 import logging
 
 LOG = logging.getLogger()
@@ -24,6 +22,8 @@ def get_auth_tokens(code):
         },
     )
     auth = req.json()
+
+    LOG.debug(f"auth: {auth}")
 
     access_token = auth["access_token"]
     refresh_token = auth["refresh_token"]
@@ -194,49 +194,15 @@ def update_eventsub(broadcaster_id, reward_id):
     return eventsub_id
 
 
-def create_reward(access_token, broadcaster_id, reward_name):
-    reward_create = requests.post(
-        f"{Config.TWITCH_API_BASEURL}/channel_points/custom_rewards",
-        headers={"Authorization": f"Bearer {access_token}", "Client-ID": Config.CLIENT_ID},
-        params={
-            "broadcaster_id": broadcaster_id,
-        },
-        json={"title": reward_name, "cost": 1},
-        timeout=Config.REQUEST_TIMEOUT,
-    )
-    reward_create.raise_for_status()
-
-    try:
-        reward_id = reward_create.json()["data"][0]["id"]
-    except KeyError as exp:
-        raise requests.RequestException("could not create reward") from exp
-
-    return reward_id
-
-
-def update_reward(access_token, broadcaster_id, reward_name):
+def update_reward(broadcaster_id, reward_id):
     LOG.info(f"broadcaster_id = {broadcaster_id}")
 
-    # check if reward id exists in the db
+    # # check if reward id exists in the db
     broadcaster = Broadcaster.query.filter(Broadcaster.id == broadcaster_id).one()
     db_reward_id = broadcaster.reward_id
     LOG.info(f"db_reward_id = {db_reward_id}")
 
-    # check if reward id exists in the twitch API
-    existing_rewards = get_rewards(access_token, broadcaster_id)
-    reward_id = None
-    for reward in existing_rewards:
-        if reward["title"] == reward_name:
-            reward_id = reward["id"]
-            LOG.info(f"found existing reward_id={reward_id} for broadcaster_id={broadcaster_id}")
-            continue
-
-    # create reward if it doesn't exist
-    if reward_id is None:
-        LOG.info(f"creating new reward for broadcaster_id={broadcaster_id}")
-        reward_id = create_reward(access_token, broadcaster_id, reward_name)
-
-    # update reward details to the database if required
+    # update reward details in the database if required
     if db_reward_id != reward_id:
         LOG.info(
             f"updating database with reward details, reward_id={reward_id} broadcaster_id={broadcaster_id}"
@@ -253,34 +219,3 @@ def add_first(broadcaster_id, user_name):
     db.session.commit()
 
     return first
-
-
-def get_hmac(hmac_message):
-    hmac_value = hmac.new(
-        Config.EVENTSUB_SECRET.encode("utf-8"), hmac_message, hashlib.sha256
-    ).hexdigest()
-
-    LOG.info(f"calculated hmac as sha256={hmac_value}")
-
-    return hmac_value
-
-
-def verify_eventsub_message(request):
-    headers = request.headers
-    body = request.data
-
-    LOG.info(f"body type = {type(body)}")
-
-    message_id = headers["Twitch-Eventsub-Message-Id"]
-    message_timestamp = headers["Twitch-Eventsub-Message-Timestamp"]
-    message_signature = headers["Twitch-Eventsub-Message-Signature"]
-
-    hmac_message = message_id.encode("utf-8") + message_timestamp.encode("utf-8") + body
-    LOG.info(f"type {type(hmac_message)} hmac_message = {hmac_message}")
-
-    hmac_value = f"sha256={get_hmac(hmac_message)}"
-
-    if hmac_value == message_signature:
-        return True
-
-    return False

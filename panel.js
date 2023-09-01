@@ -1,30 +1,26 @@
 const twitch = window.Twitch.ext;
+const extensionUri = "https://twitch.hv1.jaedolph.net"
 
 twitch.onAuthorized((auth) => {
     channelId = auth.channelId;
+    token = auth.token; //JWT passed to backend for authentication
+    authorization = "Bearer " + auth.token;
     console.log("channel id is " + channelId);
-    getFirsts(channelId)
+    getFirsts(authorization)
 });
 
 
-twitch.onContext((context) => {
-    console.log(context.theme);
-    if (context.theme == "dark") {
-        document.getElementById("root").style.color = "rgb(239, 239, 241)";
-        console.log("switched to dark theme");
-    } else {
-        document.getElementById("root").style.color = "rgb(14, 14, 16)";
-        console.log("switched to light theme");
-    }
-});
+function getFirsts(authorization) {
 
-
-function getFirsts(broadcasterId) {
-
-    var firstsUrl = 'https://twitch.hv1.jaedolph.net/firsts?broadcaster_id=' + broadcasterId
+    var firstsUrl = 'https://twitch.hv1.jaedolph.net/firsts'
 
     console.log("getting firsts");
-    fetch(firstsUrl).then(function (response) {
+    fetch(
+        firstsUrl, {
+        headers: {
+            "Content-Type": "application/json",
+            "Authorization": authorization,
+        }}).then(function (response) {
         return response.json();
     }).then(function (firsts) {
         var firstsGrouped = groupFirsts(firsts)

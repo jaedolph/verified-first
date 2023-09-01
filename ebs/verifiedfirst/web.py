@@ -4,11 +4,14 @@ from verifiedfirst.extensions import db
 from verifiedfirst.config import Config
 from verifiedfirst.models.broadcasters import Broadcaster
 from verifiedfirst.models.firsts import First
-from verifiedfirst import twitch
+from verifiedfirst import twitch, verify
+from flask_cors import CORS
+from functools import wraps
 
 from flask import Flask, jsonify, request, Response
 
 app = Flask(__name__)
+CORS(app)
 app.config.from_object(Config)
 db.init_app(app)
 
@@ -18,50 +21,88 @@ logging.basicConfig(
     format=f"%(asctime)s %(levelname)s %(name)s %(threadName)s : %(message)s",
 )
 
-# @app.route("/broadcasters", methods=["GET"])
-# def broadcasters():
-#     broadcasters = Broadcaster.query.all()
-#     return jsonify(broadcasters)
+
+def token_required(func):
+    @wraps(func)
+    def decorated_function(*args, **kwargs):
+        token = verify.verify_jwt(request)
+        if not token:
+            return jsonify({"error": "could not verify auth token"}), 403
+
+        try:
+            channel_id = token["channel_id"]
+            role = token["role"]
+        except KeyError as exp:
+            return jsonify({"error": "could not parse user attributes from jwt"}), 400
+        app.logger.debug(f"authenticated request for channel_id={channel_id} role={role}")
+        return func(channel_id, role)
+
+    return decorated_function
+
+
+@app.route("/config", methods=["GET"])
+@token_required
+def conifg(channel_id, role):
+    if role != "broadcaster":
+        return jsonify({"error": "user role is not broadcaster"}), 403
+
+    return jsonify({"channel_id": channel_id})
 
 
 @app.route("/firsts", methods=["GET"])
-def firsts():
-    broadcaster_id = int(request.args["broadcaster_id"])
+@token_required
+def firsts(channel_id, role):
+    firsts = twitch.get_firsts(channel_id)
+    if not firsts:
+        return {}, 404
 
-    resp = jsonify(twitch.get_firsts(broadcaster_id))
-    resp.headers["Access-Control-Allow-Origin"] = "*"
+    resp = jsonify(firsts)
 
     return resp
 
 
-@app.route("/eventsub/create", methods=["GET"])
-def eventsub_create():
-    broadcaster_id = int(request.args["broadcaster_id"])
-    broadcaster = Broadcaster.query.filter(Broadcaster.id == broadcaster_id).one()
+@app.route("/eventsub/create", methods=["POST"])
+@token_required
+def eventsub_create(channel_id, role):
+    if role != "broadcaster":
+        return jsonify({"error": "user role is not broadcaster"}), 403
 
-    reward_id = twitch.update_reward(broadcaster.access_token, broadcaster.id, "First")
+    reward_id = request.args["reward_id"]
 
-    eventsub_id = twitch.update_eventsub(broadcaster_id, reward_id)
+    broadcaster = Broadcaster.query.filter(Broadcaster.id == channel_id).one()
+
+    if broadcaster is None:
+        return jsonify({"error": "broadcaster is not authed yet"}), 404
+
+    reward_id = twitch.update_reward(broadcaster.id, reward_id)
+
+    eventsub_id = twitch.update_eventsub(channel_id, reward_id)
 
     return jsonify({"eventsub_id": eventsub_id})
 
 
 @app.route("/rewards", methods=["GET"])
-def rewards():
-    broadcaster_id = int(request.args["broadcaster_id"])
+@token_required
+def rewards(channel_id, role):
+    if role != "broadcaster":
+        return jsonify({"error": "user role is not broadcaster"}), 403
 
-    broadcaster = Broadcaster.query.filter(Broadcaster.id == broadcaster_id).one()
+    broadcaster = Broadcaster.query.filter(Broadcaster.id == channel_id).one()
     rewards = twitch.get_rewards(broadcaster.access_token, broadcaster.id)
+
     return jsonify(rewards)
 
 
 @app.route("/auth", methods=["GET"])
 def auth():
+    app.logger.error(request.headers)
     code = request.args["code"]
     access_token, refresh_token = twitch.get_auth_tokens(code)
     broadcaster_name, _ = twitch.update_broadcaster_details(access_token, refresh_token)
 
-    return f"Auth updated for {broadcaster_name}"
+    resp = Response("Auth has been updated, you can now close this window")
+
+    return resp
 
 
 @app.route("/eventsub", methods=["POST"])
@@ -73,8 +114,10 @@ def eventsub():
     app.logger.info(f"{request.headers}")
     app.logger.info(f"{request_data}")
 
-    if not twitch.verify_eventsub_message(request):
+    if not verify.verify_eventsub_message(request):
         return "failed to verify hmac", 403
+
+    app.logger.info(f"hmac verified")
 
     if message_type == "webhook_callback_verification":
         challenge = request_data["challenge"]
@@ -94,74 +137,3 @@ def eventsub():
         first = twitch.add_first(broadcaster_id, user_name)
 
     return jsonify(first)
-
-
-# @app.route('/auth', methods =['GET'])
-# def auth():
-#     code = request.args["code"]
-#     access_token, refresh_token = get_auth_tokens(code)
-#     broadcaster_name, broadcaster_id = update_broadcaster_details(access_token, refresh_token)
-
-#     reward_id = update_reward(access_token, broadcaster_id, "first-testing")
-#     update_eventsub(access_token, broadcaster_id, reward_id)
-
-#     return "OK"
-
-# @app.route('/broadcasters', methods =['GET'])
-# def broadcasters():
-#     conn = get_db_connection()
-#     conn.row_factory = sqlite3.Row
-#     broadcasters = conn.execute('SELECT * FROM broadcasters').fetchall()
-#     conn.close()
-
-#     broadcasters_list = []
-
-#     for broadcaster in broadcasters:
-#         app.logger.info("broadcaster")
-#         broadcasters_list.append({
-#             "name": broadcaster["broadcaster_name"],
-#             "id": broadcaster["broadcaster_id"],
-#             "reward_id": broadcaster["reward_id"],
-#             "reward_name": broadcaster["reward_name"],
-#         })
-
-#     return jsonify(broadcasters_list)
-
-
-# @app.route('/firsts', methods =['GET'])
-# def firsts():
-
-#     broadcaster_id = int(request.args["broadcaster_id"])
-
-#     resp = jsonify(get_firsts(broadcaster_id))
-#     resp.headers['Access-Control-Allow-Origin'] = '*'
-#     return resp
-
-# @app.route('/eventsub', methods =['POST'])
-# def eventsub():
-#     request_data = request.get_json()
-
-#     message_type = request.headers["Twitch-Eventsub-Message-Type"]
-
-#     app.logger.info(f"{request.headers}")
-#     app.logger.info(f"{request_data}")
-
-#     if not verify_eventsub_message(request):
-#         return "failed to verify hmac", 403
-
-#     if message_type == "webhook_callback_verification":
-#         challenge = request_data["challenge"]
-#         app.logger.info(f"responding to challenge {challenge}")
-#         return challenge
-
-#     if message_type == "notification":
-#         broadcaster_id = request_data["event"]["broadcaster_user_id"]
-#         user_id = request_data["event"]["user_id"]
-#         user_name = request_data["event"]["user_login"]
-#         reward_id = request_data["event"]["reward"]["id"]
-
-#         app.logger.info(f"Adding first for broadcaster_id={broadcaster_id} user_id={user_id} user_name={user_name} reward_id={reward_id}")
-#         # TODO: check reward id is correct, check for duplicate message ids
-#         first = add_first(broadcaster_id, user_id, user_name)
-
-#     return jsonify({"test": "test"})

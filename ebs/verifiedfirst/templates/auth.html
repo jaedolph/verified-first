@@ -1,0 +1,8 @@
+<!DOCTYPE html>
+<body>
+    <p>{{ auth_msg }}</p>
+    <script>
+        window.opener.postMessage("{{ auth_msg }}", "*");
+    </script>
+</body>
+

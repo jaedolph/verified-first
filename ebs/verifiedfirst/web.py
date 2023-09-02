@@ -8,7 +8,7 @@ from verifiedfirst import twitch, verify
 from flask_cors import CORS
 from functools import wraps
 
-from flask import Flask, jsonify, request, Response
+from flask import Flask, jsonify, request, Response, render_template
 
 app = Flask(__name__)
 CORS(app)
@@ -38,15 +38,6 @@ def token_required(func):
         return func(channel_id, role)
 
     return decorated_function
-
-
-@app.route("/config", methods=["GET"])
-@token_required
-def conifg(channel_id, role):
-    if role != "broadcaster":
-        return jsonify({"error": "user role is not broadcaster"}), 403
-
-    return jsonify({"channel_id": channel_id})
 
 
 @app.route("/firsts", methods=["GET"])
@@ -95,14 +86,22 @@ def rewards(channel_id, role):
 
 @app.route("/auth", methods=["GET"])
 def auth():
-    app.logger.error(request.headers)
-    code = request.args["code"]
-    access_token, refresh_token = twitch.get_auth_tokens(code)
-    broadcaster_name, _ = twitch.update_broadcaster_details(access_token, refresh_token)
+    app.logger.debug(request.headers)
 
-    resp = Response("Auth has been updated, you can now close this window")
+    auth_msg = "AUTH_FAILED"
 
-    return resp
+    if "error" in request.args:
+        return render_template("auth.html", auth_msg=auth_msg)
+
+    try:
+        code = request.args["code"]
+        access_token, refresh_token = twitch.get_auth_tokens(code)
+        twitch.update_broadcaster_details(access_token, refresh_token)
+        auth_msg = "AUTH_SUCCESSFUL"
+    except Exception as exp:
+        app.logger.error(f"Auth failed: {exp}")
+
+    return render_template("auth.html", auth_msg=auth_msg)
 
 
 @app.route("/eventsub", methods=["POST"])

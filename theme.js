@@ -1,3 +1,4 @@
+
 twitch.onContext((context) => {
     console.log(context.theme);
     if (context.theme == "dark") {

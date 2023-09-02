@@ -24,6 +24,7 @@ def get_auth_tokens(code):
     auth = req.json()
 
     LOG.debug(f"auth: {auth}")
+    req.raise_for_status()
 
     access_token = auth["access_token"]
     refresh_token = auth["refresh_token"]

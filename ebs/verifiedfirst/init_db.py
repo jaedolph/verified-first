@@ -1,10 +1,9 @@
-from verifiedfirst.web import app
 from verifiedfirst.extensions import db
-from verifiedfirst.models.broadcasters import Broadcaster
+from verifiedfirst.web import app
 from verifiedfirst.models.firsts import First
 
-
 def main():
+
     with app.app_context():
         db.drop_all()
         db.create_all()

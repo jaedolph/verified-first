@@ -2,7 +2,6 @@ import os
 
 
 class Config:
-    basedir = os.path.abspath(os.path.dirname(__file__))
 
     CLIENT_ID = os.environ.get("CLIENT_ID")
     CLIENT_SECRET = os.environ.get("CLIENT_SECRET")
@@ -13,4 +12,4 @@ class Config:
     EVENTSUB_CALLBACK_URL = os.environ.get("EVENTSUB_CALLBACK_URL")
     REQUEST_TIMEOUT = int(os.environ.get("REQUEST_TIMEOUT"))
     EVENTSUB_SECRET = os.environ.get("EVENTSUB_SECRET")
-    SQLALCHEMY_DATABASE_URI = "sqlite:///" + os.path.join(basedir, "app.db")
+    SQLALCHEMY_DATABASE_URI = os.environ.get("SQLALCHEMY_DATABASE_URI")

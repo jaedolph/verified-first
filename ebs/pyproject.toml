@@ -9,6 +9,7 @@ authors = [
 dependencies = [
     "flask",
     "Flask-SQLAlchemy",
+    "flask-cors",
     "requests",
     "pyjwt[crypto]",
 ]
@@ -18,7 +19,7 @@ requires = ["setuptools"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools]
-packages = ["verifiedfirst"]
+packages = ["verifiedfirst", "verifiedfirst.models"]
 
 [tool.black]
 line-length = 100

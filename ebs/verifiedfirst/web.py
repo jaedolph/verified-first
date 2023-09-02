@@ -88,11 +88,8 @@ def rewards(channel_id, role):
 def auth():
     app.logger.debug(request.headers)
 
-    auth_msg = "AUTH_FAILED"
-
     if "error" in request.args:
-        return render_template("auth.html", auth_msg=auth_msg)
-
+        return render_template("auth.html", auth_msg="AUTH_FAILED")
     try:
         code = request.args["code"]
         access_token, refresh_token = twitch.get_auth_tokens(code)
@@ -100,6 +97,7 @@ def auth():
         auth_msg = "AUTH_SUCCESSFUL"
     except Exception as exp:
         app.logger.error(f"Auth failed: {exp}")
+        auth_msg = "AUTH_FAILED"
 
     return render_template("auth.html", auth_msg=auth_msg)
 

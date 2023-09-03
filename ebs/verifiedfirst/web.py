@@ -78,8 +78,7 @@ def rewards(channel_id, role):
     if role != "broadcaster":
         return jsonify({"error": "user role is not broadcaster"}), 403
 
-    broadcaster = Broadcaster.query.filter(Broadcaster.id == channel_id).one()
-    rewards = twitch.get_rewards(broadcaster.access_token, broadcaster.id)
+    rewards = twitch.get_rewards(channel_id)
 
     return jsonify(rewards)
 

@@ -1,6 +1,6 @@
 import os
 
-
+#pylint: disable=too-few-public-methods
 class Config:
 
     CLIENT_ID = os.environ.get("CLIENT_ID")

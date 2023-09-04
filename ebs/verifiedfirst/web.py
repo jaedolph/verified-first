@@ -1,30 +1,25 @@
 import logging
-import os
-from verifiedfirst.extensions import db
-from verifiedfirst.config import Config
-from verifiedfirst.models.broadcasters import Broadcaster
-from verifiedfirst.models.firsts import First
-from verifiedfirst import twitch, verify
-from flask_cors import CORS
 from functools import wraps
 
-from flask import Flask, jsonify, request, Response, render_template
+from flask import Flask, jsonify, render_template, request
+from flask_cors import CORS
+from verifiedfirst import twitch, verify
+from verifiedfirst.config import Config
 
 app = Flask(__name__)
 CORS(app)
 app.config.from_object(Config)
-db.init_app(app)
 
 logging.basicConfig(
     filename="record.log",
     level=logging.DEBUG,
-    format=f"%(asctime)s %(levelname)s %(name)s %(threadName)s : %(message)s",
+    format="%(asctime)s %(levelname)s %(name)s %(threadName)s : %(message)s",
 )
 
 
 def token_required(func):
     @wraps(func)
-    def decorated_function(*args, **kwargs):
+    def decorated_function():
         token = verify.verify_jwt(request)
         if not token:
             return jsonify({"error": "could not verify auth token"}), 403
@@ -33,8 +28,10 @@ def token_required(func):
             channel_id = token["channel_id"]
             role = token["role"]
         except KeyError as exp:
-            return jsonify({"error": "could not parse user attributes from jwt"}), 400
-        app.logger.debug(f"authenticated request for channel_id={channel_id} role={role}")
+            error_msg = f"could not parse user attributes from jwt, {exp}"
+            app.logger.error(error_msg)
+            return jsonify({}), 400
+        app.logger.debug("authenticated request for channel_id=%s role=%s", channel_id, role)
         return func(channel_id, role)
 
     return decorated_function
@@ -42,12 +39,13 @@ def token_required(func):
 
 @app.route("/firsts", methods=["GET"])
 @token_required
-def firsts(channel_id, role):
-    firsts = twitch.get_firsts(channel_id)
-    if not firsts:
+def firsts(channel_id, _):
+
+    firsts_dict = twitch.get_firsts(channel_id)
+    if not firsts_dict:
         return {}, 404
 
-    resp = jsonify(firsts)
+    resp = jsonify(firsts_dict)
 
     return resp
 
@@ -60,12 +58,11 @@ def eventsub_create(channel_id, role):
 
     reward_id = request.args["reward_id"]
 
-    broadcaster = Broadcaster.query.filter(Broadcaster.id == channel_id).one()
-
-    if broadcaster is None:
+    # check broadcaster exists in database
+    if twitch.get_broadcaster(channel_id) is None:
         return jsonify({"error": "broadcaster is not authed yet"}), 404
 
-    reward_id = twitch.update_reward(broadcaster.id, reward_id)
+    reward_id = twitch.update_reward(channel_id, reward_id)
 
     eventsub_id = twitch.update_eventsub(channel_id, reward_id)
 
@@ -78,9 +75,9 @@ def rewards(channel_id, role):
     if role != "broadcaster":
         return jsonify({"error": "user role is not broadcaster"}), 403
 
-    rewards = twitch.get_rewards(channel_id)
+    rewards_dict = twitch.get_rewards(channel_id)
 
-    return jsonify(rewards)
+    return jsonify(rewards_dict)
 
 
 @app.route("/auth", methods=["GET"])
@@ -95,7 +92,7 @@ def auth():
         twitch.update_broadcaster_details(access_token, refresh_token)
         auth_msg = "AUTH_SUCCESSFUL"
     except Exception as exp:
-        app.logger.error(f"Auth failed: {exp}")
+        app.logger.error("auth failed: %s", exp)
         auth_msg = "AUTH_FAILED"
 
     return render_template("auth.html", auth_msg=auth_msg)
@@ -107,17 +104,17 @@ def eventsub():
 
     message_type = request.headers["Twitch-Eventsub-Message-Type"]
 
-    app.logger.info(f"{request.headers}")
-    app.logger.info(f"{request_data}")
+    app.logger.debug("eventsub_headers=%s", request.headers)
+    app.logger.debug("eventsub_data=%s", request_data)
 
     if not verify.verify_eventsub_message(request):
         return "failed to verify hmac", 403
 
-    app.logger.info(f"hmac verified")
+    app.logger.info("hmac verified")
 
     if message_type == "webhook_callback_verification":
         challenge = request_data["challenge"]
-        app.logger.info(f"responding to challenge {challenge}")
+        app.logger.info("responding to challenge: %s", challenge)
         return challenge
 
     if message_type == "notification":
@@ -127,7 +124,11 @@ def eventsub():
         reward_id = request_data["event"]["reward"]["id"]
 
         app.logger.info(
-            f"Adding first for broadcaster_id={broadcaster_id} user_id={user_id} user_name={user_name} reward_id={reward_id}"
+            "adding first for broadcaster_id=%s user_id=%s user_name=%s reward_id=%s",
+            broadcaster_id,
+            user_id,
+            user_name,
+            reward_id,
         )
         # TODO: check reward id is correct, check for duplicate message ids
         first = twitch.add_first(broadcaster_id, user_name)

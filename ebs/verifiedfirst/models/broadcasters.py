@@ -1,7 +1,8 @@
-from verifiedfirst.extensions import db
 from dataclasses import dataclass
 
+from verifiedfirst.extensions import db
 
+#pylint: disable=invalid-name
 @dataclass
 class Broadcaster(db.Model):
     id: int = db.Column(db.Integer, primary_key=True)

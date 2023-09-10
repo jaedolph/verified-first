@@ -225,4 +225,15 @@ def eventsub() -> Response:
         # TODO: check reward id is correct, check for duplicate message ids
         first = twitch.add_first(broadcaster_id, user_name)
 
-    return make_response(jsonify(first))
+        return make_response(jsonify(first))
+
+    if message_type == "revocation":
+        eventsub_id = request_data["subscription"]["id"]
+        broadcaster_id = request_data["subscription"]["condition"]["broadcaster_user_id"]
+        app.logger.info(
+            "revoking eventsub for broadcaster_id=%s eventsub_id=%s", broadcaster_id, eventsub_id
+        )
+        twitch.delete_eventsub(eventsub_id)
+        return make_response(jsonify({"eventsub_id": eventsub_id}))
+
+    abort(401, "could not process eventsub")

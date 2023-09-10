@@ -32,4 +32,5 @@ wrap-descriptions = 100
 load-plugins = ["pylint.extensions.docparams", "pylint.extensions.docstyle"]
 max-args = 10
 max-attributes = 10
-generated-members = "requests.codes.*"
+generated-members = "codes.*"
+disable = ["fixme"]

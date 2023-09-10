@@ -1,3 +1,4 @@
+"""main.py."""
 from verifiedfirst.extensions import db
 from verifiedfirst.web import app
 

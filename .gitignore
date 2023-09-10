@@ -4,6 +4,7 @@ ebs/venv
 *.db
 *.log
 *.env
+.tox
 __pycache__/
 build/
 package-lock.json

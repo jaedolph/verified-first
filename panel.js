@@ -1,16 +1,21 @@
+'use strict'
 const twitch = window.Twitch.ext
-const extensionUri = 'https://twitch.hv1.jaedolph.net'
+const extensionUri = 'https://verifiedfirst.jaedolph.net'
 const firstsUrl = extensionUri + '/firsts'
 
 let authorization
 
-twitch.onAuthorized((auth) => {
+// Get "fists" counts after the user is authorized
+twitch.onAuthorized(function (auth) {
   authorization = 'Bearer ' + auth.token
   getFirsts(authorization)
 })
 
+/**
+* Get first counts from the EBS and update the display
+* @param {String} authorization - authorization header to send to the EBS
+*/
 function getFirsts (authorization) {
-  console.log('getting firsts')
   fetch(
     firstsUrl, {
       headers: {
@@ -21,7 +26,6 @@ function getFirsts (authorization) {
     return response.json()
   }).then(function (firsts) {
     const firstsGrouped = groupFirsts(firsts)
-    console.log(firstsGrouped)
     let firstsString = ''
 
     for (const count in firstsGrouped) {
@@ -35,11 +39,18 @@ function getFirsts (authorization) {
     document.getElementById('firsts').innerHTML = firstsString
     document.getElementById('lastupdated').innerHTML = 'Last updated: ' + date
   }).catch(function (error) {
-    console.error('something went wrong')
+    console.error('failed to get firsts')
     console.error(error)
   })
 }
 
+/**
+* Group first by count
+* @summary Takes a "first" Object of counts by user and groups users by count
+* @param {Object} firsts - first counts by user e.g. {"user1": 5, "user2": 2, "user3": 2}
+* @return {Object} dictionary of first counts grouped by count
+*                  e.g. {"5": ["user1"], "2" ["user2", "user3"]}
+*/
 function groupFirsts (firsts) {
   const counts = {}
   for (const user in firsts) {

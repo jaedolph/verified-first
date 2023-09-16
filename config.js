@@ -26,20 +26,22 @@ configForm.addEventListener('submit', submitConfig)
 /**
 * Get the channel's rewards using the EBS and add them to a dropdown menu
 */
-async function getRewards () {
+function getRewards () {
   const rewardsUrl = extensionUri + '/rewards'
 
-  try {
-    // get list of a channel's rewards using the EBS
-    const response = await fetch(rewardsUrl, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: authorization
-      }
-    })
-    const rewards = await response.json()
-
+  // get list of a channel's rewards using the EBS
+  fetch(rewardsUrl, {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: authorization
+    }
+  }).then(function (response) {
+    if (!response.ok) {
+      return response.text().then(text => { throw new Error(text) })
+    }
+    return response.json()
+  }).then(function (rewards) {
     // create config menu once rewards have been retrieved
     document.getElementById('config').innerHTML = `
       <label for="reward_select">Select your "First" channel points reward:</label><br>
@@ -53,11 +55,11 @@ async function getRewards () {
       newOption.text = reward.title
       document.getElementById('reward_select').appendChild(newOption)
     }
-  } catch (error) {
+  }).catch(function (error) {
     document.getElementById('config').innerHTML = ''
     console.error('failed to retrieve rewards')
     console.error(error)
-  }
+  })
 }
 
 /**
@@ -78,6 +80,9 @@ function createEventsub (rewardId) {
       Authorization: authorization
     }
   }).then(function (response) {
+    if (!response.ok) {
+      return response.text().then(text => { throw new Error(text) })
+    }
     return response.json().eventsub_id
   }).then(function (eventsubId) {
     console.log('created eventsub id=' + eventsubId)

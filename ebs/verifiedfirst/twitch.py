@@ -120,7 +120,11 @@ def request_twitch_api_broadcaster(broadcaster: Broadcaster, request: Request) -
 
     # if we get an unauthorized response, try to refresh the token
     app.logger.debug("refreshing auth token")
-    broadcaster = refresh_auth_token(broadcaster)
+    try:
+        broadcaster = refresh_auth_token(broadcaster)
+    except RequestException as exp:
+        app.logger.error("failed to refresh auth token: %s", exp)
+        raise exp
 
     # retry the request with a new token
     app.logger.debug("retrying with new auth token: %s", broadcaster.access_token)
@@ -219,8 +223,10 @@ def get_rewards(broadcaster: Broadcaster) -> list[Any]:
         resp = request_twitch_api_broadcaster(broadcaster, req)
         rewards = resp.json()["data"]
         assert isinstance(rewards, list)
-    except (KeyError, AssertionError) as exp:
-        raise RequestException("could not get rewards") from exp
+    except (RequestException, KeyError, AssertionError) as exp:
+        error_msg = f"could not get rewards: {exp}"
+        app.logger.error(error_msg)
+        raise RequestException() from exp
 
     return rewards
 

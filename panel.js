@@ -23,6 +23,9 @@ function getFirsts (authorization) {
         Authorization: authorization
       }
     }).then(function (response) {
+    if (!response.ok) {
+      return response.text().then(text => { throw new Error(text) })
+    }
     return response.json()
   }).then(function (firsts) {
     const firstsGrouped = groupFirsts(firsts)

@@ -3,7 +3,8 @@ from functools import wraps
 from typing import Callable, TypeVar, cast
 
 from flask import Response, abort, jsonify, make_response, render_template, request
-from werkzeug.exceptions import BadRequest, Forbidden, NotFound, Unauthorized
+from werkzeug.exceptions import BadRequest, Forbidden, NotFound, Unauthorized, InternalServerError
+from requests import RequestException
 
 from verifiedfirst import twitch, verify
 from verifiedfirst.app_init import app
@@ -71,6 +72,16 @@ def not_found(exception: NotFound) -> Response:
     :return: json formatted response
     """
     return make_response(jsonify({"error": exception.description}), 404)
+
+
+@app.errorhandler(500)
+def not_found(exception: InternalServerError) -> Response:
+    """500 error response (internal server error).
+
+    :param exception: the exception that was raised
+    :return: json formatted response
+    """
+    return make_response(jsonify({"error": exception.description}), 500)
 
 
 @app.route("/firsts", methods=["GET"])
@@ -146,8 +157,10 @@ def rewards(channel_id: int, role: str) -> Response:
     broadcaster = twitch.get_broadcaster(channel_id)
     if broadcaster is None:
         abort(403, "broadcaster is not authed yet")
-
-    rewards_dict = twitch.get_rewards(broadcaster)
+    try:
+        rewards_dict = twitch.get_rewards(broadcaster)
+    except RequestException as exp:
+        abort(500, f"failed to get rewards for broadcaster {broadcaster.name}")
 
     return make_response(jsonify(rewards_dict))
 
@@ -165,6 +178,7 @@ def auth() -> Response:
         return make_response(render_template("auth.html", auth_msg="AUTH_FAILED"))
     try:
         code = request.args["code"]
+        app.logger.debug("code=%s", code)
         access_token, refresh_token = twitch.get_auth_tokens(code)
         twitch.update_broadcaster_details(access_token, refresh_token)
         auth_msg = "AUTH_SUCCESSFUL"

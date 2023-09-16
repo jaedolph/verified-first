@@ -43,7 +43,15 @@ def get_auth_tokens(code: str) -> Tuple[str, str]:
 
     return access_token, refresh_token
 
+
 def get_app_access_token() -> str:
+    """Gets an app access token using the "client credentials" twitch oauth flow.
+
+    :raises RequestException: if request fails
+    :raises KeyError: if response doesn't contain expected values
+    :raises AssertionError: if the access token is in the wrong format
+    :return: valid access token
+    """
     req = post(
         "https://id.twitch.tv/oauth2/token",
         params={
@@ -63,7 +71,8 @@ def get_app_access_token() -> str:
         app.logger.debug("auth: %s", auth)
 
         access_token = auth["access_token"]
-    except (RequestException, KeyError) as exp:
+        assert isinstance(access_token, str)
+    except (RequestException, KeyError, AssertionError) as exp:
         raise exp
 
     return access_token

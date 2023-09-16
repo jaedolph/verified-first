@@ -75,7 +75,7 @@ def not_found(exception: NotFound) -> Response:
 
 
 @app.errorhandler(500)
-def not_found(exception: InternalServerError) -> Response:
+def internal_server_error(exception: InternalServerError) -> Response:
     """500 error response (internal server error).
 
     :param exception: the exception that was raised
@@ -159,8 +159,8 @@ def rewards(channel_id: int, role: str) -> Response:
         abort(403, "broadcaster is not authed yet")
     try:
         rewards_dict = twitch.get_rewards(broadcaster)
-    except RequestException as exp:
-        abort(500, f"failed to get rewards for broadcaster {broadcaster.name}")
+    except RequestException:
+        abort(500, "failed to get rewards for broadcaster")
 
     return make_response(jsonify(rewards_dict))
 

@@ -23,7 +23,7 @@ def get_auth_tokens(code: str) -> Tuple[str, str]:
         "https://id.twitch.tv/oauth2/token",
         params={
             "client_id": app.config["CLIENT_ID"],
-            "client_secret": app.config["CLIENT_ID"],
+            "client_secret": app.config["CLIENT_SECRET"],
             "code": code,
             "grant_type": "authorization_code",
             "redirect_uri": app.config["REDIRECT_URI"],

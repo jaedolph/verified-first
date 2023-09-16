@@ -83,9 +83,9 @@ function createEventsub (rewardId) {
     if (!response.ok) {
       return response.text().then(text => { throw new Error(text) })
     }
-    return response.json().eventsub_id
-  }).then(function (eventsubId) {
-    console.log('created eventsub id=' + eventsubId)
+    return response.json()
+  }).then(function (eventsub) {
+    console.log('created eventsub id=' + eventsub.eventsub_id)
     document.getElementById('eventsub').innerHTML = 'Configuration successful'
   }).catch(function (error) {
     console.error('failed to create eventsub')

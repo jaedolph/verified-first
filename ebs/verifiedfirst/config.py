@@ -25,10 +25,6 @@ class Config:
         if not EXTENSION_SECRET:
             raise ValueError(f"Missing env var {PREFIX}EXTENSION_SECRET")
 
-        APP_ACCESS_TOKEN = os.environ.get(f"{PREFIX}APP_ACCESS_TOKEN") or ""
-        if not APP_ACCESS_TOKEN:
-            raise ValueError(f"Missing env var {PREFIX}APP_ACCESS_TOKEN")
-
         REDIRECT_URI = os.environ.get(f"{PREFIX}REDIRECT_URI") or ""
         if not REDIRECT_URI:
             raise ValueError(f"Missing env var {PREFIX}REDIRECT_URI")
@@ -47,6 +43,9 @@ class Config:
     except ValueError as exp:
         LOG.error(exp)
         sys.exit(1)
+
+    # the APP_ACCESS_TOKEN will be created automatically
+    APP_ACCESS_TOKEN = None
 
     TWITCH_API_BASEURL: str = (
         os.environ.get(f"{PREFIX}TWITCH_API_BASEURL") or "https://api.twitch.tv/helix"

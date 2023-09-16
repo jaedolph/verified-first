@@ -43,6 +43,31 @@ def get_auth_tokens(code: str) -> Tuple[str, str]:
 
     return access_token, refresh_token
 
+def get_app_access_token() -> str:
+    req = post(
+        "https://id.twitch.tv/oauth2/token",
+        params={
+            "client_id": app.config["CLIENT_ID"],
+            "client_secret": app.config["CLIENT_SECRET"],
+            "grant_type": "client_credentials",
+        },
+        headers={
+            "Content-Type": "application/x-www-form-urlencoded",
+        },
+        timeout=app.config["REQUEST_TIMEOUT"],
+    )
+
+    try:
+        req.raise_for_status()
+        auth = req.json()
+        app.logger.debug("auth: %s", auth)
+
+        access_token = auth["access_token"]
+    except (RequestException, KeyError) as exp:
+        raise exp
+
+    return access_token
+
 
 def refresh_auth_token(broadcaster: Broadcaster) -> Broadcaster:
     """Refresh authorization token for a specific broadcaster.
@@ -148,9 +173,25 @@ def request_twitch_api_app(request: Request) -> Response:
         return resp
     except RequestException as exp:
         app.logger.error("request to twitch api failed: %s", exp)
+        if resp.status_code != codes.unauthorized:
+            raise exp
+
+    # if we get an unauthorized response, try to refresh the token
+    app.logger.debug("refreshing auth token")
+    try:
+        access_token = get_app_access_token()
+        app.config["APP_ACCESS_TOKEN"] = access_token
+    except RequestException as exp:
+        app.logger.error("failed to refresh auth token: %s", exp)
         raise exp
 
-    # TODO: auto refresh app access token if we get an "UNAUTHORIZED" response
+    # retry the request with a new token
+    app.logger.debug("retrying with new auth token: %s", app.config["APP_ACCESS_TOKEN"])
+
+    resp = request_twitch_api(app.config["APP_ACCESS_TOKEN"], request)
+    resp.raise_for_status()
+
+    return resp
 
 
 def get_broadcaster_from_token(access_token: str) -> Tuple[str, int]:

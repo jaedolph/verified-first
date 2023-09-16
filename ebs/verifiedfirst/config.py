@@ -5,7 +5,7 @@ import sys
 from typing import cast
 
 PREFIX = "VFIRST_"
-LOG = logging.getLogger("verifiedfirst")
+LOG = logging.getLogger("config")
 
 
 # pylint: disable=too-few-public-methods

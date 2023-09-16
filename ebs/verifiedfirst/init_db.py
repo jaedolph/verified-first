@@ -1,7 +1,7 @@
 """init_db.py."""
 
 from verifiedfirst.extensions import db
-from verifiedfirst.web import app
+from verifiedfirst.app_init import app
 
 
 def main() -> None:

@@ -1,17 +1,14 @@
 """twitch.py."""
-import logging
 from collections import defaultdict
 from typing import Any, List, Tuple
 
 from requests import Request, Response, Session, codes, post
 from requests.exceptions import RequestException
 
-from verifiedfirst.config import Config
+from verifiedfirst.app_init import app
 from verifiedfirst.extensions import db
 from verifiedfirst.models.broadcasters import Broadcaster
 from verifiedfirst.models.firsts import First
-
-LOG = logging.getLogger("verifiedfirst")
 
 
 def get_auth_tokens(code: str) -> Tuple[str, str]:
@@ -25,19 +22,19 @@ def get_auth_tokens(code: str) -> Tuple[str, str]:
     req = post(
         "https://id.twitch.tv/oauth2/token",
         params={
-            "client_id": Config.CLIENT_ID,
-            "client_secret": Config.CLIENT_SECRET,
+            "client_id": app.config["CLIENT_ID"],
+            "client_secret": app.config["CLIENT_ID"],
             "code": code,
             "grant_type": "authorization_code",
-            "redirect_uri": Config.REDIRECT_URI,
+            "redirect_uri": app.config["REDIRECT_URI"],
         },
-        timeout=Config.REQUEST_TIMEOUT,
+        timeout=app.config["REQUEST_TIMEOUT"],
     )
 
     try:
         req.raise_for_status()
         auth = req.json()
-        LOG.debug("auth: %s", auth)
+        app.logger.debug("auth: %s", auth)
 
         access_token = auth["access_token"]
         refresh_token = auth["refresh_token"]
@@ -58,18 +55,18 @@ def refresh_auth_token(broadcaster: Broadcaster) -> Broadcaster:
     req = post(
         "https://id.twitch.tv/oauth2/token",
         params={
-            "client_id": Config.CLIENT_ID,
-            "client_secret": Config.CLIENT_SECRET,
+            "client_id": app.config["CLIENT_ID"],
+            "client_secret": app.config["CLIENT_ID"],
             "refresh_token": broadcaster.refresh_token,
             "grant_type": "refresh_token",
         },
-        timeout=Config.REQUEST_TIMEOUT,
+        timeout=app.config["REQUEST_TIMEOUT"],
     )
 
     try:
         req.raise_for_status()
         auth = req.json()
-        LOG.debug("auth: %s", auth)
+        app.logger.debug("auth: %s", auth)
 
         access_token = auth["access_token"]
         refresh_token = auth["refresh_token"]
@@ -96,7 +93,7 @@ def request_twitch_api(access_token: str, request: Request) -> Response:
 
     resp = session.send(
         request.prepare(),
-        timeout=Config.REQUEST_TIMEOUT,
+        timeout=app.config["REQUEST_TIMEOUT"],
     )
 
     return resp
@@ -117,16 +114,16 @@ def request_twitch_api_broadcaster(broadcaster: Broadcaster, request: Request) -
         resp.raise_for_status()
         return resp
     except RequestException as exp:
-        LOG.error("request to twitch api failed: %s", exp)
+        app.logger.error("request to twitch api failed: %s", exp)
         if resp.status_code != codes.unauthorized:
             raise exp
 
     # if we get an unauthorized response, try to refresh the token
-    LOG.debug("refreshing auth token")
+    app.logger.debug("refreshing auth token")
     broadcaster = refresh_auth_token(broadcaster)
 
     # retry the request with a new token
-    LOG.debug("retrying with new auth token: %s", broadcaster.access_token)
+    app.logger.debug("retrying with new auth token: %s", broadcaster.access_token)
 
     resp = request_twitch_api(broadcaster.access_token, request)
     resp.raise_for_status()
@@ -142,11 +139,11 @@ def request_twitch_api_app(request: Request) -> Response:
     :return: response from the twitch api
     """
     try:
-        resp = request_twitch_api(Config.APP_ACCESS_TOKEN, request)
+        resp = request_twitch_api(app.config["APP_ACCESS_TOKEN"], request)
         resp.raise_for_status()
         return resp
     except RequestException as exp:
-        LOG.error("request to twitch api failed: %s", exp)
+        app.logger.error("request to twitch api failed: %s", exp)
         raise exp
 
     # TODO: auto refresh app access token if we get an "UNAUTHORIZED" response
@@ -161,8 +158,8 @@ def get_broadcaster_from_token(access_token: str) -> Tuple[str, int]:
     """
     req = Request(
         method="GET",
-        url=f"{Config.TWITCH_API_BASEURL}/users",
-        headers={"Client-ID": Config.CLIENT_ID},
+        url=f"{app.config['TWITCH_API_BASEURL']}/users",
+        headers={"Client-ID": app.config["CLIENT_ID"]},
     )
 
     try:
@@ -210,8 +207,8 @@ def get_rewards(broadcaster: Broadcaster) -> list[Any]:
     """
     req = Request(
         method="GET",
-        url=f"{Config.TWITCH_API_BASEURL}/channel_points/custom_rewards",
-        headers={"Client-ID": Config.CLIENT_ID},
+        url=f"{app.config['TWITCH_API_BASEURL']}/channel_points/custom_rewards",
+        headers={"Client-ID": app.config["CLIENT_ID"]},
         params={
             "broadcaster_id": broadcaster.id,
             "only_manageable_rewards": "False",
@@ -254,8 +251,8 @@ def create_eventsub(broadcaster: Broadcaster, reward_id: str) -> str:
     """
     req = Request(
         method="POST",
-        url=f"{Config.TWITCH_API_BASEURL}/eventsub/subscriptions",
-        headers={"Client-ID": Config.CLIENT_ID},
+        url=f"{app.config['TWITCH_API_BASEURL']}/eventsub/subscriptions",
+        headers={"Client-ID": app.config["CLIENT_ID"]},
         json={
             "type": "channel.channel_points_custom_reward_redemption.add",
             "version": "1",
@@ -265,15 +262,15 @@ def create_eventsub(broadcaster: Broadcaster, reward_id: str) -> str:
             },
             "transport": {
                 "method": "webhook",
-                "callback": Config.EVENTSUB_CALLBACK_URL,
-                "secret": Config.EVENTSUB_SECRET,
+                "callback": app.config["EVENTSUB_CALLBACK_URL"],
+                "secret": app.config["EVENTSUB_SECRET"],
             },
         },
     )
 
     try:
         resp = request_twitch_api_app(req)
-        LOG.debug("response: %s", resp.text)
+        app.logger.debug("response: %s", resp.text)
         eventsub_id = resp.json()["data"][0]["id"]
         assert isinstance(eventsub_id, str)
     except (RequestException, KeyError, AssertionError) as exp:
@@ -291,9 +288,9 @@ def get_eventsubs(broadcaster: Broadcaster) -> List[Any]:
     """
     req = Request(
         method="GET",
-        url=f"{Config.TWITCH_API_BASEURL}/eventsub/subscriptions",
+        url=f"{app.config['TWITCH_API_BASEURL']}/eventsub/subscriptions",
         params={"user_id": broadcaster.id},
-        headers={"Client-ID": Config.CLIENT_ID},
+        headers={"Client-ID": app.config["CLIENT_ID"]},
     )
 
     resp = request_twitch_api_app(req)
@@ -315,15 +312,15 @@ def delete_eventsub(eventsub_id: str) -> None:
     """
     req = Request(
         method="DELETE",
-        url=f"{Config.TWITCH_API_BASEURL}/eventsub/subscriptions",
-        headers={"Client-ID": Config.CLIENT_ID},
+        url=f"{app.config['TWITCH_API_BASEURL']}/eventsub/subscriptions",
+        headers={"Client-ID": app.config["CLIENT_ID"]},
         params={"id": eventsub_id},
     )
 
     resp = request_twitch_api_app(req)
     resp.raise_for_status()
 
-    LOG.debug("delete eventsub response=%s", resp.text)
+    app.logger.debug("delete eventsub response=%s", resp.text)
 
 
 def update_eventsub(broadcaster: Broadcaster, reward_id: str) -> str:
@@ -335,30 +332,30 @@ def update_eventsub(broadcaster: Broadcaster, reward_id: str) -> str:
     :return: id of the eventsub
     """
     broadcaster_id = broadcaster.id
-    LOG.info("updating eventsub for broadcaster_id=%s", broadcaster_id)
+    app.logger.info("updating eventsub for broadcaster_id=%s", broadcaster_id)
 
     # check if eventsub id exists in the db
     db_eventsub_id = broadcaster.eventsub_id
-    LOG.debug("db_eventsub_id=%s", db_eventsub_id)
+    app.logger.debug("db_eventsub_id=%s", db_eventsub_id)
 
     # check if eventsub id exists in the twitch API
     existing_eventsubs = get_eventsubs(broadcaster)
     matching_eventsub = None
-    LOG.debug("existing_eventsubs=%s", existing_eventsubs)
+    app.logger.debug("existing_eventsubs=%s", existing_eventsubs)
     for eventsub in existing_eventsubs:
-        LOG.debug("eventsub=%s", eventsub)
+        app.logger.debug("eventsub=%s", eventsub)
         eventsub_id = eventsub["id"]
         eventsub_status = eventsub["status"]
         eventsub_reward_id = eventsub["condition"]["reward_id"]
         if eventsub_reward_id == reward_id and eventsub_status == "enabled":
-            LOG.info(
+            app.logger.info(
                 "found existing eventsub_id=%s for broadcaster_id=%s",
                 eventsub_id,
                 broadcaster_id,
             )
             matching_eventsub = eventsub_id
         else:
-            LOG.info(
+            app.logger.info(
                 "deleting old eventsub eventsub_id=%s for broadcaster_id=%s",
                 eventsub_id,
                 broadcaster_id,
@@ -367,12 +364,12 @@ def update_eventsub(broadcaster: Broadcaster, reward_id: str) -> str:
 
     # create eventsub if it doesn't exist
     if matching_eventsub is None:
-        LOG.info("creating new eventsub for broadcaster_id=%s", broadcaster_id)
+        app.logger.info("creating new eventsub for broadcaster_id=%s", broadcaster_id)
         matching_eventsub = create_eventsub(broadcaster, reward_id)
 
     # update eventsub details to the database if required
     if db_eventsub_id != matching_eventsub:
-        LOG.info(
+        app.logger.info(
             "updating database with eventsub details, eventsub_id=%s broadcaster_id=%s",
             matching_eventsub,
             broadcaster_id,
@@ -390,14 +387,14 @@ def update_reward(broadcaster: Broadcaster, reward_id: str) -> str:
     :param reward_id: id of the reward to use to track "firsts"
     :return: id of the reward
     """
-    LOG.info("updating reward for broadcaster_id=%s", broadcaster.id)
+    app.logger.info("updating reward for broadcaster_id=%s", broadcaster.id)
 
     db_reward_id = broadcaster.reward_id
-    LOG.debug("db_reward_id=%s", db_reward_id)
+    app.logger.debug("db_reward_id=%s", db_reward_id)
 
     # update reward details in the database if required
     if db_reward_id != reward_id:
-        LOG.info(
+        app.logger.info(
             "updating database with reward details, reward_id=%s broadcaster_id=%s",
             reward_id,
             broadcaster.id,

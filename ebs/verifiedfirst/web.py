@@ -1,23 +1,12 @@
 """web.py."""
-import logging
 from functools import wraps
 from typing import Callable, TypeVar, cast
 
-from flask import Flask, Response, abort, jsonify, make_response, render_template, request
-from flask_cors import CORS
+from flask import Response, abort, jsonify, make_response, render_template, request
+from werkzeug.exceptions import BadRequest, Forbidden, NotFound, Unauthorized
 
 from verifiedfirst import twitch, verify
-from verifiedfirst.config import Config
-
-app = Flask(__name__)
-CORS(app)
-app.config.from_object(Config)
-
-logging.basicConfig(
-    filename="record.log",
-    level=logging.DEBUG,
-    format="%(asctime)s %(levelname)s %(name)s %(threadName)s : %(message)s",
-)
+from verifiedfirst.app_init import app
 
 R = TypeVar("R")
 
@@ -45,43 +34,43 @@ def token_required(func: Callable[[int, str], R]) -> Callable[[int, str], R]:
 
 
 @app.errorhandler(400)
-def bad_request(message: str) -> Response:
+def bad_request(exception: BadRequest) -> Response:
     """400 error response (bad request).
 
-    :param message: additional details for the error
-    :return: 400 error response
+    :param exception: the exception that was raised
+    :return: json formatted response
     """
-    return make_response(jsonify({"error": message}), 400)
+    return make_response(jsonify({"error": exception.description}), 400)
 
 
 @app.errorhandler(401)
-def authorization_error(message: str) -> Response:
+def authorization_error(exception: Unauthorized) -> Response:
     """401 error response (unauthorized).
 
-    :param message: additional details for the error
-    :return: 401 error response
+    :param exception: the exception that was raised
+    :return: json formatted response
     """
-    return make_response(jsonify({"error": message}), 401)
+    return make_response(jsonify({"error": exception.description}), 401)
 
 
 @app.errorhandler(403)
-def forbidden(message: str) -> Response:
+def forbidden(exception: Forbidden) -> Response:
     """403 error response (forbidden).
 
-    :param message: additional details for the error
-    :return: 401 error response
+    :param exception: the exception that was raised
+    :return: json formatted response
     """
-    return make_response(jsonify({"error": message}), 403)
+    return make_response(jsonify({"error": exception.description}), 403)
 
 
 @app.errorhandler(404)
-def not_found(message: str) -> Response:
+def not_found(exception: NotFound) -> Response:
     """404 error response (not found).
 
-    :param message: additional details for the error
-    :return: 401 error response
+    :param exception: the exception that was raised
+    :return: json formatted response
     """
-    return make_response(jsonify({"error": message}), 404)
+    return make_response(jsonify({"error": exception.description}), 404)
 
 
 @app.route("/firsts", methods=["GET"])

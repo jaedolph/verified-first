@@ -6,7 +6,6 @@ from typing import Tuple
 
 import jwt
 from flask import Request
-
 from verifiedfirst.app_init import app
 
 
@@ -57,11 +56,15 @@ def verify_jwt(request: Request) -> Tuple[int, str]:
     headers = request.headers
 
     try:
-        token = headers["Authorization"].split(" ")[1].strip()
+        auth_header = headers["Authorization"]
+        app.logger.debug("auth_header=%s", auth_header)
+        token = auth_header.split(" ")[1].strip()
+        app.logger.debug("token=%s", token)
     except KeyError as exp:
-        app.logger.info("could not get auth token from headers: %s", exp)
+        error_msg = "could not get auth token from headers"
+        app.logger.debug(error_msg)
+        raise PermissionError(error_msg) from exp
 
-    app.logger.debug("token=%s", token)
     payload = None
     try:
         payload = jwt.decode(
@@ -72,8 +75,9 @@ def verify_jwt(request: Request) -> Tuple[int, str]:
         role = payload["role"]
         assert isinstance(channel_id, int)
         assert isinstance(role, str)
-    except (jwt.exceptions.InvalidSignatureError, AssertionError, KeyError, ValueError) as exp:
-        app.logger.error("error: %s", exp)
-        raise PermissionError() from exp
+    except (jwt.exceptions.PyJWTError, AssertionError, KeyError, ValueError) as exp:
+        error_message = f"could not validate jwt, {exp}"
+        app.logger.debug(error_message)
+        raise PermissionError(error_message) from exp
 
     return channel_id, role

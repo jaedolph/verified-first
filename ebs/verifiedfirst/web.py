@@ -23,8 +23,8 @@ def token_required(func: Callable[[int, str], R]) -> Callable[[int, str], R]:
         try:
             channel_id, role = verify.verify_jwt(request)
         except PermissionError as exp:
-            error_msg = f"could not parse user attributes from jwt, {exp}"
-            app.logger.error(error_msg)
+            error_msg = f"authentication failed: {exp}"
+            app.logger.debug(error_msg)
             return abort(401, error_msg)
 
         app.logger.debug("authenticated request for channel_id=%s role=%s", channel_id, role)

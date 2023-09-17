@@ -1,7 +1,7 @@
 """broadcasters.py."""
 from dataclasses import dataclass
 
-from verifiedfirst.extensions import db
+from verifiedfirst.database import db
 
 
 # pylint: disable=invalid-name

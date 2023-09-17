@@ -1,4 +1,4 @@
-import pytest
+"""test_verify.py"""
 import os
 
 os.environ['VFIRST_CLIENT_ID'] = 'abcdefghijklmnopqrstuvwxyz1234'
@@ -11,10 +11,11 @@ os.environ['VFIRST_REQUEST_TIMEOUT'] = "5"
 os.environ['VFIRST_EVENTSUB_SECRET'] = "secret1234!"
 os.environ['VFIRST_SQLALCHEMY_DATABASE_URI'] = "sqlite:////tmp/app.db"
 
-
 from verifiedfirst.verify import get_hmac
 
-def test_get_hmac(mocker, mg):
+def test_get_hmac(mocker):
+    """Test the get_hmac function generates a correct hmac
+    """
     mock_config = mocker.patch('verifiedfirst.app_init.app.config')
     config = {
         "EVENTSUB_SECRET": "secret1234!",

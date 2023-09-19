@@ -1,7 +1,8 @@
 """Error handlers."""
 from typing import cast
+
 from flask import Blueprint, Response, jsonify
-from werkzeug.exceptions import BadRequest, Forbidden, NotFound, Unauthorized, InternalServerError
+from werkzeug.exceptions import BadRequest, Forbidden, InternalServerError, NotFound, Unauthorized
 
 bp = Blueprint("errors", __name__)
 
@@ -13,7 +14,9 @@ def bad_request(exception: BadRequest) -> Response:
     :param exception: the exception that was raised
     :return: json formatted response
     """
-    return cast(Response, jsonify({"error": exception.description}, status=400))
+    response = jsonify({"error": exception.description})
+    response.status_code = 400
+    return cast(Response, response)
 
 
 @bp.app_errorhandler(401)  # type: ignore
@@ -23,7 +26,9 @@ def unauthorized(exception: Unauthorized) -> Response:
     :param exception: the exception that was raised
     :return: json formatted response
     """
-    return cast(Response, jsonify({"error": exception.description}, status=401))
+    response = jsonify({"error": exception.description})
+    response.status_code = 401
+    return cast(Response, response)
 
 
 @bp.app_errorhandler(403)  # type: ignore
@@ -33,7 +38,9 @@ def forbidden(exception: Forbidden) -> Response:
     :param exception: the exception that was raised
     :return: json formatted response
     """
-    return cast(Response, jsonify({"error": exception.description}, status=403))
+    response = jsonify({"error": exception.description})
+    response.status_code = 403
+    return cast(Response, response)
 
 
 @bp.app_errorhandler(404)  # type: ignore
@@ -43,7 +50,9 @@ def not_found(exception: NotFound) -> Response:
     :param exception: the exception that was raised
     :return: json formatted response
     """
-    return cast(Response, jsonify({"error": exception.description}, status=404))
+    response = jsonify({"error": exception.description})
+    response.status_code = 404
+    return cast(Response, response)
 
 
 @bp.app_errorhandler(500)  # type: ignore
@@ -53,4 +62,6 @@ def internal_server_error(exception: InternalServerError) -> Response:
     :param exception: the exception that was raised
     :return: json formatted response
     """
-    return cast(Response, jsonify({"error": exception.description}, status=500))
+    response = jsonify({"error": exception.description})
+    response.status_code = 500
+    return cast(Response, response)

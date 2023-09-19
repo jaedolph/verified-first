@@ -1,63 +1,63 @@
 """Tests for app error handlers."""
 
 import pytest
-
+from flask import Response
 from verifiedfirst.errors import handlers
 
 ERROR_MSG = "test"
 RESPONSE_DICT = {"error": ERROR_MSG}
 
-@pytest.fixture(name="mock_errors")
-def fixture_mock_errors(mocker):
-    """Mocks functions/objects used in error handlers."""
-    mock_jsonify = mocker.patch("verifiedfirst.errors.handlers.jsonify")
+@pytest.fixture(name="mock_exception")
+def fixture_mock_exception(mocker):
+    """Mocks exception to pass to error handlers."""
+
     mock_exception = mocker.Mock()
     mock_exception.description = ERROR_MSG
 
-    return mock_jsonify, mock_exception
+    return mock_exception
 
 
-def test_bad_request(app, mock_errors): # pylint: disable=unused-argument
+def test_bad_request(app, mock_exception): # pylint: disable=unused-argument
     """Test bad_request handler."""
 
-    mock_jsonify, mock_exception = mock_errors
+    response = handlers.bad_request(mock_exception)
 
-    handlers.bad_request(mock_exception)
+    assert isinstance(response, Response)
+    assert response.status_code == 400
+    assert response.json == RESPONSE_DICT
 
-    mock_jsonify.assert_called_with(RESPONSE_DICT, status=400)
-
-def test_unauthorized(app, mock_errors): # pylint: disable=unused-argument
+def test_unauthorized(app, mock_exception): # pylint: disable=unused-argument
     """Test unauthorized handler."""
 
-    mock_jsonify, mock_exception = mock_errors
+    response = handlers.unauthorized(mock_exception)
 
-    handlers.unauthorized(mock_exception)
+    assert isinstance(response, Response)
+    assert response.status_code == 401
+    assert response.json == RESPONSE_DICT
 
-    mock_jsonify.assert_called_with(RESPONSE_DICT, status=401)
-
-def test_forbidden(app, mock_errors): # pylint: disable=unused-argument
+def test_forbidden(app, mock_exception): # pylint: disable=unused-argument
     """Test forbidden handler."""
 
-    mock_jsonify, mock_exception = mock_errors
+    response = handlers.forbidden(mock_exception)
 
-    handlers.forbidden(mock_exception)
+    assert isinstance(response, Response)
+    assert response.status_code == 403
+    assert response.json == RESPONSE_DICT
 
-    mock_jsonify.assert_called_with(RESPONSE_DICT, status=403)
-
-def test_not_found(app, mock_errors): # pylint: disable=unused-argument
+def test_not_found(app, mock_exception): # pylint: disable=unused-argument
     """Test not_found handler."""
 
-    mock_jsonify, mock_exception = mock_errors
+    response = handlers.not_found(mock_exception)
 
-    handlers.not_found(mock_exception)
+    assert isinstance(response, Response)
+    assert response.status_code == 404
+    assert response.json == RESPONSE_DICT
 
-    mock_jsonify.assert_called_with(RESPONSE_DICT, status=404)
-
-def test_internal_server_error(app, mock_errors): # pylint: disable=unused-argument
+def test_internal_server_error(app, mock_exception): # pylint: disable=unused-argument
     """Test internal_server_error handler."""
 
-    mock_jsonify, mock_exception = mock_errors
+    response = handlers.internal_server_error(mock_exception)
 
-    handlers.internal_server_error(mock_exception)
-
-    mock_jsonify.assert_called_with(RESPONSE_DICT, status=500)
+    assert isinstance(response, Response)
+    assert response.status_code == 500
+    assert response.json == RESPONSE_DICT

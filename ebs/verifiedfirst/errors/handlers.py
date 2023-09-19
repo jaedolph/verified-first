@@ -1,5 +1,6 @@
 """Error handlers."""
-from flask import Blueprint, Response, jsonify, make_response
+from typing import cast
+from flask import Blueprint, Response, jsonify
 from werkzeug.exceptions import BadRequest, Forbidden, NotFound, Unauthorized, InternalServerError
 
 bp = Blueprint("errors", __name__)
@@ -12,17 +13,17 @@ def bad_request(exception: BadRequest) -> Response:
     :param exception: the exception that was raised
     :return: json formatted response
     """
-    return make_response(jsonify({"error": exception.description}), 400)
+    return cast(Response, jsonify({"error": exception.description}, status=400))
 
 
 @bp.app_errorhandler(401)  # type: ignore
-def authorization_error(exception: Unauthorized) -> Response:
+def unauthorized(exception: Unauthorized) -> Response:
     """401 error response (unauthorized).
 
     :param exception: the exception that was raised
     :return: json formatted response
     """
-    return make_response(jsonify({"error": exception.description}), 401)
+    return cast(Response, jsonify({"error": exception.description}, status=401))
 
 
 @bp.app_errorhandler(403)  # type: ignore
@@ -32,7 +33,7 @@ def forbidden(exception: Forbidden) -> Response:
     :param exception: the exception that was raised
     :return: json formatted response
     """
-    return make_response(jsonify({"error": exception.description}), 403)
+    return cast(Response, jsonify({"error": exception.description}, status=403))
 
 
 @bp.app_errorhandler(404)  # type: ignore
@@ -42,7 +43,7 @@ def not_found(exception: NotFound) -> Response:
     :param exception: the exception that was raised
     :return: json formatted response
     """
-    return make_response(jsonify({"error": exception.description}), 404)
+    return cast(Response, jsonify({"error": exception.description}, status=404))
 
 
 @bp.app_errorhandler(500)  # type: ignore
@@ -52,4 +53,4 @@ def internal_server_error(exception: InternalServerError) -> Response:
     :param exception: the exception that was raised
     :return: json formatted response
     """
-    return make_response(jsonify({"error": exception.description}), 500)
+    return cast(Response, jsonify({"error": exception.description}, status=500))

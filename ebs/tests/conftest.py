@@ -16,7 +16,7 @@ class TestConfig(Config):
     REDIRECT_URI = "https://twitch.hv1.jaedolph.net/auth"
     TWITCH_API_BASEURL = "https://api.twitch.tv/helix"
     EVENTSUB_CALLBACK_URL = "https://verifiedfirst.jaedolph.net/eventsub"
-    REQUEST_TIMEOUT = "5"
+    REQUEST_TIMEOUT = 5
     EVENTSUB_SECRET = "secret1234!"
     TESTING = True
     SQLALCHEMY_DATABASE_URI = 'sqlite://'

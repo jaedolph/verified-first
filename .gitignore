@@ -10,3 +10,4 @@ htmlcov
 __pycache__/
 build/
 package-lock.json
+yarn.lock

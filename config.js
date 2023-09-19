@@ -1,5 +1,8 @@
+// Config form for the "Verified First" extension
+
 'use strict'
-const twitch = window.Twitch.ext
+import { twitch } from './globals.js'
+
 const twitchOuthUrl = 'https://id.twitch.tv/oauth2/authorize'
 const scope = 'channel:read:redemptions'
 const extensionUri = 'https://verifiedfirst.jaedolph.net'

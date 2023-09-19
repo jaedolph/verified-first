@@ -1,12 +1,12 @@
-"""init_db.py."""
+"""Perform initial load of the database."""
 
-from verifiedfirst.extensions import db
-from verifiedfirst.app_init import app
+from flask import current_app
+from verifiedfirst.database import db
 
 
 def main() -> None:
     """Initializes the database."""
-    with app.app_context():
+    with current_app.app_context():
         db.drop_all()
         db.create_all()
 

@@ -1,5 +1,8 @@
+// The "Verified First Chatters" panel displayed to viewers
+
 'use strict'
-const twitch = window.Twitch.ext
+import { twitch } from './globals.js'
+
 const extensionUri = 'https://verifiedfirst.jaedolph.net'
 const firstsUrl = extensionUri + '/firsts'
 

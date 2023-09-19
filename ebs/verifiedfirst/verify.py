@@ -96,8 +96,8 @@ def verify_jwt(request: Request) -> Tuple[int, str]:
         current_app.logger.debug("auth_header=%s", auth_header)
         token = auth_header.split(" ")[1].strip()
         current_app.logger.debug("token=%s", token)
-    except KeyError as exp:
-        error_msg = "could not get auth token from headers"
+    except (KeyError, IndexError) as exp:
+        error_msg = f"could not get auth token from headers, {exp.__class__.__name__}: {exp}"
         current_app.logger.debug(error_msg)
         raise PermissionError(error_msg) from exp
 
@@ -114,7 +114,7 @@ def verify_jwt(request: Request) -> Tuple[int, str]:
         assert isinstance(channel_id, int)
         assert isinstance(role, str)
     except (jwt.exceptions.PyJWTError, AssertionError, KeyError, ValueError) as exp:
-        error_message = f"could not validate jwt, {exp}"
+        error_message = f"could not validate jwt, {exp.__class__.__name__}: {exp}"
         current_app.logger.debug(error_message)
         raise PermissionError(error_message) from exp
 

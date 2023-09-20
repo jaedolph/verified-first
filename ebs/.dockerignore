@@ -1,0 +1,10 @@
+ebs/venv
+*.egg-info
+*.db
+*.log
+*.env
+.tox
+.coverage
+htmlcov
+__pycache__/
+build/

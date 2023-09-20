@@ -12,6 +12,7 @@ dependencies = [
     "flask-cors",
     "requests",
     "pyjwt[crypto]",
+    "psycopg2-binary",
 ]
 
 [project.scripts]

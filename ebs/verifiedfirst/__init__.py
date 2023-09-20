@@ -10,8 +10,7 @@ from verifiedfirst.config import Config
 from verifiedfirst.database import db
 
 logging.basicConfig(
-    filename="record.log",
-    level=logging.DEBUG,
+    stream=sys.stdout,
     format="%(asctime)s %(levelname)s %(name)s %(threadName)s : %(message)s",
 )
 
@@ -33,6 +32,13 @@ def create_app(config_class: type = Config) -> Flask:
         sys.exit(1)
 
     app.config.from_object(config_class)
+
+    # set log level
+    try:
+        app.logger.setLevel(app.config["LOG_LEVEL"])
+    except ValueError as exp:
+        app.logger.error("error setting log level: %s", exp)
+        sys.exit(1)
 
     # initialize database
     db.init_app(app)

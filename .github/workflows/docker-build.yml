@@ -29,7 +29,7 @@ jobs:
         uses: docker/build-push-action@v3
         with:
           builder: ${{ steps.buildx.outputs.name }}
-          context: ebs
+          context: "{{defaultContext}}:ebs"
           file: ./Dockerfile
           push: true
           platforms: linux/amd64,linux/arm64

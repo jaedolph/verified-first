@@ -15,6 +15,7 @@ class Config:
     EVENTSUB_CALLBACK_URL = os.environ.get(f"{PREFIX}EVENTSUB_CALLBACK_URL") or ""
     EVENTSUB_SECRET = os.environ.get(f"{PREFIX}EVENTSUB_SECRET") or ""
     SQLALCHEMY_DATABASE_URI = os.environ.get(f"{PREFIX}SQLALCHEMY_DATABASE_URI") or ""
+    LOG_LEVEL = os.environ.get(f"{PREFIX}LOG_LEVEL") or "INFO"
 
     # the APP_ACCESS_TOKEN will be created automatically
     APP_ACCESS_TOKEN = None

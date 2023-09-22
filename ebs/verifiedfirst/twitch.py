@@ -90,7 +90,7 @@ def refresh_auth_token(broadcaster: Broadcaster) -> Broadcaster:
         "https://id.twitch.tv/oauth2/token",
         params={
             "client_id": current_app.config["CLIENT_ID"],
-            "client_secret": current_app.config["CLIENT_ID"],
+            "client_secret": current_app.config["CLIENT_SECRET"],
             "refresh_token": broadcaster.refresh_token,
             "grant_type": "refresh_token",
         },

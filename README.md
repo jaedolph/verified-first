@@ -11,7 +11,8 @@ Twitch extension to track who gets to your stream first.
 
 4. Click the gear icon to configure the extension.
 
-5. Click the "Connect to twitch" button to allow the extension to view your channel point rewards.
+5. Click the "Connect to twitch" button and follow the prompts in the pop up window to allow the
+   extension to view your channel point rewards.
 
 6. Select your "First" reward from the drop down menu and click "Submit".
 

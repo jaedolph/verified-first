@@ -11,3 +11,4 @@ __pycache__/
 build/
 package-lock.json
 yarn.lock
+*.zip

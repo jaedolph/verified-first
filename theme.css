@@ -1,0 +1,32 @@
+body {
+    font-family: 'Helvetica Neue', 'Helvetica', 'Arial', 'sans-serif';
+    line-height: 19.5px;
+    color: rgb(14, 14, 16);
+}
+
+p {
+    font-weight: 400;
+    font-size: 13px;
+}
+
+label {
+    font-weight: 400;
+    font-size: 13px;
+}
+
+h3 {
+    font-weight: 600;
+    font-size: 24px;
+}
+
+blockquote {
+    border-left-color: rgb(169, 112, 255);
+    border-left-style: solid;
+    border-left-width: 2.4px;
+    padding-left: 0px;
+    margin-left: 0px;
+}
+
+blockquote p {
+    padding-left: 10px;
+}

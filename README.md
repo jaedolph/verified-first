@@ -1,31 +1,24 @@
-# Verified First
-Twitch extension to track who gets to your stream first
+# Verified First Leaderboard
+Twitch extension to track who gets to your stream first.
+
+## Configuring the extension for your stream
+
+1. Create a new channel points reward called "First" (or something similar). Set the cost to 1
+   point. Tick "Cooldown & Limits" and set "Limit Redemptions Per Stream" to 1 so that only one
+   viewer can claim it per stream.
+
+2. Install the "Verified First Leaderboard" extension.
+
+4. Click the gear icon to configure the extension.
+
+5. Click the "Connect to twitch" button to allow the extension to view your channel point rewards.
+
+6. Select your "First" reward from the drop down menu and click "Submit".
 
 
-## Testing frontend
-```
-npm install http-server
-node_modules/http-server/bin/http-server --cors=*
-```
+## Development
 
-## Testing backend
-
-Create .env file, use ebs/env.example as and example.
-
-Create virtual env, and install:
+Run tox tests for EBS:
 ```
-python3 -m venv ebs/venv
-source ebs/venv/bin/activate
-pip3 install -e .
-```
-
-Initialise database:
-```
-source my_values.env
-python3 ebs/verifiedfirst/init_db.py
-```
-
-Start webserver:
-```
-python3 verifiedfirst
+tox -c ebs/tox.ini
 ```

@@ -1,9 +1,10 @@
-"""test_verify.py"""
+"""test_verify.py."""
 import base64
 import time
 
 import jwt
 import pytest
+
 from verifiedfirst import verify
 
 # some mock values for testing
@@ -18,18 +19,17 @@ MESSAGE_HMAC = "8afac673b554fc414e0740ea9edb567830e97f7465eb3c381023d04beb2f45e2
 # incorrect message hmac
 MESSAGE_BAD_HMAC = "4b6915b3e283e23d92f775d37d7430a7729ee0f83bb8a0405fc717ddc7763b82"
 
-def test_get_hmac(app, mocker): # pylint: disable=unused-argument
-    """Test the get_hmac function generates a correct hmac
-    """
+
+def test_get_hmac(app, mocker):  # pylint: disable=unused-argument
+    """Test the get_hmac function generates a correct hmac."""
 
     message = (MESSAGE_ID + MESSAGE_TIMESTAMP + MESSAGE_DATA).encode("utf-8")
     hmac = verify.get_hmac(message)
     assert hmac == MESSAGE_HMAC
 
 
-def test_verify_eventsub_message(app, mocker): # pylint: disable=unused-argument
-    """Test the verify_eventsub_message function
-    """
+def test_verify_eventsub_message(app, mocker):  # pylint: disable=unused-argument
+    """Test the verify_eventsub_message function."""
 
     mock_request = mocker.Mock()
     mock_get_hmac = mocker.patch("verifiedfirst.verify.get_hmac")
@@ -61,9 +61,8 @@ def test_verify_eventsub_message(app, mocker): # pylint: disable=unused-argument
     assert not verified
 
 
-def test_verify_jwt(app, mocker): # pylint: disable=unused-argument
-    """Test the verify_jwt function.
-    """
+def test_verify_jwt(app, mocker):  # pylint: disable=unused-argument
+    """Test the verify_jwt function."""
 
     mock_request = mocker.Mock()
 
@@ -74,9 +73,9 @@ def test_verify_jwt(app, mocker): # pylint: disable=unused-argument
         "role": ROLE,
         "is_unlinked": "false",
         "pubsub_perms": {
-            "listen": [ "broadcast", "whisper-UG12X345T6J78" ],
-            "send": ["broadcast","whisper-*"]
-        }
+            "listen": ["broadcast", "whisper-UG12X345T6J78"],
+            "send": ["broadcast", "whisper-*"],
+        },
     }
 
     jwt_token = jwt.encode(
@@ -137,15 +136,13 @@ def test_verify_jwt(app, mocker): # pylint: disable=unused-argument
     assert str(exp.value) == "could not validate jwt, KeyError: 'channel_id'"
 
 
-
 def function(channel_id, role):
-    """Function to test the token_required decorator.
-    """
+    """Function to test the token_required decorator."""
     return channel_id, role
 
-def test_token_required(app, mocker): # pylint: disable=unused-argument
-    """Test the token_required decorator
-    """
+
+def test_token_required(app, mocker):  # pylint: disable=unused-argument
+    """Test the token_required decorator."""
 
     mock_verify_jwt = mocker.patch("verifiedfirst.verify.verify_jwt")
     mock_verify_jwt.return_value = (CHANNEL_ID, ROLE)

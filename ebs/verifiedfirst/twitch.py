@@ -376,8 +376,6 @@ def delete_eventsub(eventsub_id: str) -> None:
     )
 
     resp = request_twitch_api_app(req)
-    resp.raise_for_status()
-
     current_app.logger.debug("delete eventsub response=%s", resp.text)
 
 

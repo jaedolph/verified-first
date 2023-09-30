@@ -356,7 +356,7 @@ def get_eventsubs(broadcaster: Broadcaster) -> List[Any]:
     try:
         eventsubs = resp.json()["data"]
         assert isinstance(eventsubs, list)
-    except (KeyError, AssertionError) as exp:
+    except (KeyError, TypeError, AssertionError) as exp:
         raise RequestException("could not get eventsubs") from exp
 
     return eventsubs

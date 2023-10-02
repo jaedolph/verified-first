@@ -7,13 +7,13 @@ authors = [
     { name = "Jaedolph - Lord of Games" }
 ]
 dependencies = [
-    "flask",
-    "Flask-SQLAlchemy",
-    "flask-cors",
-    "requests",
-    "pyjwt[crypto]",
-    "psycopg2-binary",
-    "gunicorn",
+    "flask==2.*",
+    "Flask-SQLAlchemy==3.*",
+    "flask-cors==4.*",
+    "requests==2.*",
+    "pyjwt[crypto]==2.*",
+    "psycopg2-binary==2.*",
+    "gunicorn==21.*",
 ]
 
 [project.scripts]

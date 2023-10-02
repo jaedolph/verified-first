@@ -39,6 +39,8 @@ BROADCASTER_ID = 141981764
 CHANNEL_ID = BROADCASTER_ID
 EVENTSUB_ID = "26b1c993-bfcf-44d9-b876-379dacafe75a"
 REWARD_ID = "536b13c5-8f49-49b9-81e1-18e52b028919"
+TEST_USER_NAME = "testuser"
+TEST_USER_ID = 11223344
 EVENTSUB_JSON = {
     "total": 1,
     "data": [
@@ -62,6 +64,84 @@ EVENTSUB_JSON = {
     "total_cost": 0,
     "max_total_cost": 10000,
     "pagination": {},
+}
+
+CHALLENGE = "pogchamp-kappa-360noscope-vohiyo"
+EVENTSUB_CHALLENGE_JSON = {
+    "challenge": CHALLENGE,
+    "subscription": {
+        "id": EVENTSUB_ID,
+        "status": "webhook_callback_verification_pending",
+        "type": "channel.channel_points_custom_reward_redemption.add",
+        "version": "1",
+        "cost": 0,
+        "condition": {
+            "broadcaster_user_id": str(BROADCASTER_ID),
+            "reward_id": REWARD_ID,
+        },
+        "transport": {
+            "method": "webhook",
+            "callback": "https://verifiedfirst.jaedolph.net/eventsub",
+        },
+        "created_at": "2023-09-22T12:13:50.019162515Z",
+    },
+}
+
+EVENTSUB_NOTIFICATION_JSON = {
+    "subscription": {
+        "id": EVENTSUB_ID,
+        "status": "enabled",
+        "type": "channel.channel_points_custom_reward_redemption.add",
+        "version": "1",
+        "condition": {
+            "broadcaster_user_id": str(BROADCASTER_ID),
+            "reward_id": REWARD_ID,
+        },
+        "transport": {
+            "method": "webhook",
+            "callback": "https://verifiedfirst-test.jaedolph.net/eventsub",
+        },
+        "created_at": "2023-10-05T10:37:16.223825195Z",
+        "cost": 0,
+    },
+    "event": {
+        "broadcaster_user_id": str(BROADCASTER_ID),
+        "broadcaster_user_login": "testbroadcaster",
+        "broadcaster_user_name": "testbroadcaster",
+        "id": "d3979e74-c857-4956-ae56-ce77d08e70a7",
+        "user_id": TEST_USER_ID,
+        "user_login": TEST_USER_NAME,
+        "user_name": TEST_USER_NAME,
+        "user_input": "",
+        "status": "fulfilled",
+        "redeemed_at": "2023-10-05T10:38:17.44291232Z",
+        "reward": {
+            "id": REWARD_ID,
+            "title": "First Testing",
+            "prompt": "",
+            "cost": 1,
+        },
+    },
+}
+
+
+EVENTSUB_REVOCATION_JSON = {
+    "subscription": {
+        "id": EVENTSUB_ID,
+        "status": "authorization_revoked",
+        "type": "channel.channel_points_custom_reward_redemption.add",
+        "version": "1",
+        "cost": 0,
+        "condition": {
+            "broadcaster_user_id": str(BROADCASTER_ID),
+            "reward_id": REWARD_ID,
+        },
+        "transport": {
+            "method": "webhook",
+            "callback": "https://verifiedfirst.jaedolph.net/eventsub",
+        },
+        "created_at": "2023-09-22T12:13:50.019162515Z",
+    }
 }
 
 REWARDS_JSON = {

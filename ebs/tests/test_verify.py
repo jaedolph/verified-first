@@ -7,25 +7,17 @@ import pytest
 
 from verifiedfirst import verify
 
-# some mock values for testing
-MESSAGE_ID = "f929cb30-aa0f-4320-a630-351b23dff92a"
-MESSAGE_TIMESTAMP = "2000-01-01T00:00:00.000Z"
-MESSAGE_DATA = "test"
-CHANNEL_ID = 123456
-ROLE = "broadcaster"
-# hmacs generated using the secret key "secret1234!"
-# correct message hmac
-MESSAGE_HMAC = "8afac673b554fc414e0740ea9edb567830e97f7465eb3c381023d04beb2f45e2"
-# incorrect message hmac
-MESSAGE_BAD_HMAC = "4b6915b3e283e23d92f775d37d7430a7729ee0f83bb8a0405fc717ddc7763b82"
+from . import defaults
 
 
 def test_get_hmac(app, mocker):  # pylint: disable=unused-argument
     """Test the get_hmac function generates a correct hmac."""
 
-    message = (MESSAGE_ID + MESSAGE_TIMESTAMP + MESSAGE_DATA).encode("utf-8")
+    message = (defaults.MESSAGE_ID + defaults.MESSAGE_TIMESTAMP + defaults.MESSAGE_DATA).encode(
+        "utf-8"
+    )
     hmac = verify.get_hmac(message)
-    assert hmac == MESSAGE_HMAC
+    assert hmac == defaults.MESSAGE_HMAC
 
 
 def test_verify_eventsub_message(app, mocker):  # pylint: disable=unused-argument
@@ -34,15 +26,15 @@ def test_verify_eventsub_message(app, mocker):  # pylint: disable=unused-argumen
     mock_request = mocker.Mock()
     mock_get_hmac = mocker.patch("verifiedfirst.verify.get_hmac")
 
-    mock_get_hmac.return_value = MESSAGE_HMAC
+    mock_get_hmac.return_value = defaults.MESSAGE_HMAC
 
     headers = {
-        "Twitch-Eventsub-Message-Id": MESSAGE_ID,
-        "Twitch-Eventsub-Message-Timestamp": MESSAGE_TIMESTAMP,
-        "Twitch-Eventsub-Message-Signature": "sha256=" + MESSAGE_HMAC,
+        "Twitch-Eventsub-Message-Id": defaults.MESSAGE_ID,
+        "Twitch-Eventsub-Message-Timestamp": defaults.MESSAGE_TIMESTAMP,
+        "Twitch-Eventsub-Message-Signature": "sha256=" + defaults.MESSAGE_HMAC,
     }
     mock_request.headers = headers
-    mock_request.data = MESSAGE_DATA.encode("utf-8")
+    mock_request.data = defaults.MESSAGE_DATA.encode("utf-8")
 
     # test that verification works on good signature
     verified = verify.verify_eventsub_message(mock_request)
@@ -55,7 +47,7 @@ def test_verify_eventsub_message(app, mocker):  # pylint: disable=unused-argumen
 
     mock_get_hmac.reset_mock(return_value=False, side_effect=True)
     # test that verification fails when the signature is incorrect
-    headers["Twitch-Eventsub-Message-Signature"] = "sha256=" + MESSAGE_BAD_HMAC
+    headers["Twitch-Eventsub-Message-Signature"] = "sha256=" + defaults.MESSAGE_BAD_HMAC
     mock_request.headers = headers
     verified = verify.verify_eventsub_message(mock_request)
     assert not verified
@@ -69,8 +61,8 @@ def test_verify_jwt(app, mocker):  # pylint: disable=unused-argument
     jwt_payload = {
         "exp": int(time.time() + 999),
         "opaque_user_id": "UG12X345T6J78",
-        "channel_id": CHANNEL_ID,
-        "role": ROLE,
+        "channel_id": defaults.CHANNEL_ID,
+        "role": defaults.ROLE,
         "is_unlinked": "false",
         "pubsub_perms": {
             "listen": ["broadcast", "whisper-UG12X345T6J78"],
@@ -88,8 +80,8 @@ def test_verify_jwt(app, mocker):  # pylint: disable=unused-argument
         "Authorization": "Bearer " + jwt_token,
     }
     channel_id, role = verify.verify_jwt(mock_request)
-    assert channel_id == CHANNEL_ID
-    assert role == ROLE
+    assert channel_id == defaults.CHANNEL_ID
+    assert role == defaults.ROLE
 
     # test with missing auth header
     mock_request.headers = {}
@@ -145,14 +137,14 @@ def test_token_required(app, mocker):  # pylint: disable=unused-argument
     """Test the token_required decorator."""
 
     mock_verify_jwt = mocker.patch("verifiedfirst.verify.verify_jwt")
-    mock_verify_jwt.return_value = (CHANNEL_ID, ROLE)
+    mock_verify_jwt.return_value = (defaults.CHANNEL_ID, defaults.ROLE)
 
     # test decorator correctly gets the channel_id and role
     decorated_function = verify.token_required(function)
     channel_id, role = decorated_function()
 
-    assert channel_id == CHANNEL_ID
-    assert role == ROLE
+    assert channel_id == defaults.CHANNEL_ID
+    assert role == defaults.ROLE
 
     # test 401 error is thrown if auth fails
     mock_function = mocker.Mock()

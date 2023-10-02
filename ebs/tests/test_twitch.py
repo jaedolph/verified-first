@@ -10,69 +10,20 @@ from verifiedfirst import twitch
 from verifiedfirst.models.broadcasters import Broadcaster
 from verifiedfirst.models.firsts import First
 
-AUTH_ACCESS_TOKEN = "ndwul0n9x8g6257uaei2pyczh22fz"
-AUTH_REFRESH_TOKEN = "fi02f7fs1nbpsddfvb709r07y2xbonrk4w7zxjx5woutm568e"
-AUTH_CODE = "88va56epq1t98c4km4lune8l4alzv"
-AUTH_RESPONSE_JSON = {
-    "access_token": AUTH_ACCESS_TOKEN,
-    "expires_in": 14442,
-    "id_token": (
-        "eyJhbGciOiJSUzI1NisInR5cCI6IkpXVCIsImtpZCI6IjEifQ.eyJhdWQiOiJob2Y1Z3d4MHN1Nm9"
-        "3Zm55czBueWFuOWM4N3pyNnQiLCJleHAiOjE2NDQ1MTg2NTEsImlhdCI6MTY0NDUxNzc1MSwiaXNz"
-        "IjoiaHR0cHM6Ly9pZC50d2l0Y2gudHYvb2F1dGgyIiwic3ViIjoiNzEzOTM2NzMzIiwiZW1haWwiO"
-        "iJzY290d2h0QGp1c3Rpbi50diIsImVtYWlsX3ZlcmlmaWVkIjp0cnVlfQ.uMGOyvmiXHbdUAuQ4j5"
-        "oExRIO3PyrM7fbhSkbT8r1tIQi5DKlS705oRiQOUGz2_j4yUWIx4zlvYWDbgLWpYS2VtSuXXBb2Gb"
-        "mnCR2kG2PKxbfnY9j4F2RkQfwhYnlz0PToxpoqm_NMEIX3ROzaKs6ixgNQyDRkLS8ik39rEoAy1pE"
-        "AVwbEj7-NrOYKfvm_W-RCt0Q1ppqHqhSY94jIJ38dYiT47d84c36bY5WBTs7hZniP9vIyDqFel6WO"
-        "5zWOCCa-qCRS7NMc6TZNVU-2VLTQFL0ABoLSP-E6Y_i4KTp-6NyWHUBXJYoMJekrIQW8_zM-ptskn"
-        "53--3HMtKCKuhiA"
-    ),
-    "refresh_token": AUTH_REFRESH_TOKEN,
-    "scope": [
-        "channel:read:redemptions",
-    ],
-    "token_type": "bearer",
-}
-AUTH_URL = "https://id.twitch.tv/oauth2/token"
-BROADCASTER_NAME = "twitchdev"
-BROADCASTER_ID = 141981764
-EVENTSUB_ID = "26b1c993-bfcf-44d9-b876-379dacafe75a"
-REWARD_ID = "536b13c5-8f49-49b9-81e1-18e52b028919"
-EVENTSUB_JSON = {
-    "total": 1,
-    "data": [
-        {
-            "id": EVENTSUB_ID,
-            "status": "enabled",
-            "type": "channel.channel_points_custom_reward_redemption.add",
-            "version": "1",
-            "condition": {
-                "broadcaster_user_id": str(BROADCASTER_ID),
-                "reward_id": REWARD_ID,
-            },
-            "created_at": "2023-09-22T12:13:50.019162515Z",
-            "transport": {
-                "method": "webhook",
-                "callback": "https://verifiedfirst.jaedolph.net/eventsub",
-            },
-            "cost": 0,
-        }
-    ],
-    "total_cost": 0,
-    "max_total_cost": 10000,
-    "pagination": {},
-}
+from . import defaults
 
 
 def test_get_auth_tokens(app, requests_mock):
     """Test get_auth_tokens function."""
-    mock_auth_token_request = requests_mock.post(AUTH_URL, json=AUTH_RESPONSE_JSON)
-    access_token, refresh_token = twitch.get_auth_tokens(code=AUTH_CODE)
+    mock_auth_token_request = requests_mock.post(
+        defaults.AUTH_URL, json=defaults.AUTH_RESPONSE_JSON
+    )
+    access_token, refresh_token = twitch.get_auth_tokens(code=defaults.AUTH_CODE)
 
     query_expected = (
         f"client_id={app.config['CLIENT_ID']}&"
         f"client_secret={app.config['CLIENT_SECRET']}&"
-        f"code={AUTH_CODE}&"
+        f"code={defaults.AUTH_CODE}&"
         "grant_type=authorization_code&"
         f"redirect_uri={quote(app.config['REDIRECT_URI'], safe='').lower()}"
     )
@@ -80,20 +31,22 @@ def test_get_auth_tokens(app, requests_mock):
     request = mock_auth_token_request.last_request
     assert mock_auth_token_request.called_once
     assert request.query == query_expected
-    assert access_token == AUTH_ACCESS_TOKEN
-    assert refresh_token == AUTH_REFRESH_TOKEN
+    assert access_token == defaults.AUTH_ACCESS_TOKEN
+    assert refresh_token == defaults.AUTH_REFRESH_TOKEN
 
 
 def test_get_auth_tokens_403(app, requests_mock):  # pylint: disable=unused-argument
     """Test get_auth_tokens function raises correct exception."""
-    requests_mock.post(AUTH_URL, status_code=403)
+    requests_mock.post(defaults.AUTH_URL, status_code=403)
     with pytest.raises(RequestException):
-        twitch.get_auth_tokens(code=AUTH_CODE)
+        twitch.get_auth_tokens(code=defaults.AUTH_CODE)
 
 
 def test_get_app_access_token(app, requests_mock):
     """Test get_app_access_token function."""
-    mock_auth_token_request = requests_mock.post(AUTH_URL, json=AUTH_RESPONSE_JSON)
+    mock_auth_token_request = requests_mock.post(
+        defaults.AUTH_URL, json=defaults.AUTH_RESPONSE_JSON
+    )
 
     access_token = twitch.get_app_access_token()
 
@@ -106,12 +59,12 @@ def test_get_app_access_token(app, requests_mock):
     request = mock_auth_token_request.last_request
     assert mock_auth_token_request.called_once
     assert request.query == query_expected
-    assert access_token == AUTH_ACCESS_TOKEN
+    assert access_token == defaults.AUTH_ACCESS_TOKEN
 
 
 def test_get_app_access_token_403(app, requests_mock):  # pylint: disable=unused-argument
     """Test get_app_access_token function raises correct exception."""
-    requests_mock.post(AUTH_URL, status_code=403)
+    requests_mock.post(defaults.AUTH_URL, status_code=403)
     with pytest.raises(RequestException):
         twitch.get_app_access_token()
 
@@ -122,8 +75,8 @@ def test_refresh_auth_token(app, requests_mock, init_db):
     initial_refresh_token = "mnbvcxzlkjhgfdsapoiuytrewq"
 
     initial_broadcaster = Broadcaster(
-        id=BROADCASTER_ID,
-        name=BROADCASTER_NAME,
+        id=defaults.BROADCASTER_ID,
+        name=defaults.BROADCASTER_NAME,
         access_token="qwertyuiopasdfghjklzxcvbnm",
         refresh_token=initial_refresh_token,
         reward_name="First",
@@ -131,7 +84,9 @@ def test_refresh_auth_token(app, requests_mock, init_db):
         eventsub_id="3ec20ba4-05d4-4a9b-8466-67b1b505bc5c",
     )
 
-    mock_auth_token_request = requests_mock.post(AUTH_URL, json=AUTH_RESPONSE_JSON)
+    mock_auth_token_request = requests_mock.post(
+        defaults.AUTH_URL, json=defaults.AUTH_RESPONSE_JSON
+    )
 
     broadcaster = twitch.refresh_auth_token(initial_broadcaster)
 
@@ -145,13 +100,13 @@ def test_refresh_auth_token(app, requests_mock, init_db):
     request = mock_auth_token_request.last_request
     assert mock_auth_token_request.called_once
     assert request.query == query_expected
-    assert broadcaster.refresh_token == AUTH_REFRESH_TOKEN
-    assert broadcaster.access_token == AUTH_ACCESS_TOKEN
+    assert broadcaster.refresh_token == defaults.AUTH_REFRESH_TOKEN
+    assert broadcaster.access_token == defaults.AUTH_ACCESS_TOKEN
 
 
 def test_refresh_auth_token_403(app, requests_mock, mocker):  # pylint: disable=unused-argument
     """Test refresh_auth_token function raises the correct exception."""
-    requests_mock.post(AUTH_URL, status_code=403)
+    requests_mock.post(defaults.AUTH_URL, status_code=403)
 
     initial_broadcaster = mocker.Mock()
 
@@ -431,8 +386,8 @@ def test_get_broadcaster_from_token(app, mocker):
     mock_response.json.return_value = {
         "data": [
             {
-                "id": BROADCASTER_ID,
-                "login": BROADCASTER_NAME,
+                "id": defaults.BROADCASTER_ID,
+                "login": defaults.BROADCASTER_NAME,
                 "display_name": "TwitchDev",
                 "type": "",
                 "broadcaster_type": "partner",
@@ -457,8 +412,8 @@ def test_get_broadcaster_from_token(app, mocker):
     request = request_args[1]
     assert request.method == "GET"
     assert request.headers == {"Client-ID": app.config["CLIENT_ID"]}
-    assert broadcaster_name == BROADCASTER_NAME
-    assert broadcaster_id == BROADCASTER_ID
+    assert broadcaster_name == defaults.BROADCASTER_NAME
+    assert broadcaster_id == defaults.BROADCASTER_ID
 
 
 def test_get_broadcaster_from_token_404(app, mocker):  # pylint: disable=unused-argument
@@ -479,8 +434,8 @@ def test_update_broadcaster_details(app, mocker, init_db):
     init_db(app)
     access_token = "aaaaaaaaaaaaaaaaaaaaaaaa"
     refresh_token = "bbbbbbbbbbbbbbbbbbb"
-    expected_broadcaster_name = BROADCASTER_NAME
-    expected_broadcaster_id = BROADCASTER_ID
+    expected_broadcaster_name = defaults.BROADCASTER_NAME
+    expected_broadcaster_id = defaults.BROADCASTER_ID
     mock_broadcaster_from_token = mocker.patch("verifiedfirst.twitch.get_broadcaster_from_token")
     mock_broadcaster_from_token.return_value = (expected_broadcaster_name, expected_broadcaster_id)
 
@@ -517,73 +472,12 @@ def test_get_rewards(app, mocker):
     """Test get_rewards function."""
     mock_response = mocker.Mock()
     access_token = "aaaaaaaaaaaaaaaaaaaaaaaa"
-    rewards_json = {
-        "data": [
-            {
-                "broadcaster_name": BROADCASTER_NAME,
-                "broadcaster_login": BROADCASTER_NAME,
-                "broadcaster_id": BROADCASTER_ID,
-                "id": "92af127c-7326-4483-a52b-b0da0be61c01",
-                "image": None,
-                "background_color": "#00E5CB",
-                "is_enabled": True,
-                "cost": 50000,
-                "title": "game analysis",
-                "prompt": "",
-                "is_user_input_required": False,
-                "max_per_stream_setting": {"is_enabled": False, "max_per_stream": 0},
-                "max_per_user_per_stream_setting": {
-                    "is_enabled": False,
-                    "max_per_user_per_stream": 0,
-                },
-                "global_cooldown_setting": {"is_enabled": False, "global_cooldown_seconds": 0},
-                "is_paused": False,
-                "is_in_stock": True,
-                "default_image": {
-                    "url_1x": "https://static-cdn.jtvnw.net/custom-reward-images/default-1.png",
-                    "url_2x": "https://static-cdn.jtvnw.net/custom-reward-images/default-2.png",
-                    "url_4x": "https://static-cdn.jtvnw.net/custom-reward-images/default-4.png",
-                },
-                "should_redemptions_skip_request_queue": False,
-                "redemptions_redeemed_current_stream": None,
-                "cooldown_expires_at": None,
-            },
-            {
-                "broadcaster_name": BROADCASTER_NAME,
-                "broadcaster_login": BROADCASTER_NAME,
-                "broadcaster_id": BROADCASTER_ID,
-                "id": "536b13c5-8f49-49b9-81e1-18e52b028919",
-                "image": None,
-                "background_color": "#00E5CB",
-                "is_enabled": True,
-                "cost": 1,
-                "title": "first",
-                "prompt": "",
-                "is_user_input_required": False,
-                "max_per_stream_setting": {"is_enabled": True, "max_per_stream": 1},
-                "max_per_user_per_stream_setting": {
-                    "is_enabled": False,
-                    "max_per_user_per_stream": 0,
-                },
-                "global_cooldown_setting": {"is_enabled": False, "global_cooldown_seconds": 0},
-                "is_paused": False,
-                "is_in_stock": True,
-                "default_image": {
-                    "url_1x": "https://static-cdn.jtvnw.net/custom-reward-images/default-1.png",
-                    "url_2x": "https://static-cdn.jtvnw.net/custom-reward-images/default-2.png",
-                    "url_4x": "https://static-cdn.jtvnw.net/custom-reward-images/default-4.png",
-                },
-                "should_redemptions_skip_request_queue": False,
-                "redemptions_redeemed_current_stream": None,
-                "cooldown_expires_at": None,
-            },
-        ]
-    }
+    rewards_json = defaults.REWARDS_JSON
     mock_response.json.return_value = rewards_json
     mock_request_twitch_api = mocker.patch("verifiedfirst.twitch.request_twitch_api")
     mock_request_twitch_api.return_value = mock_response
     mock_broadcaster = mocker.Mock()
-    mock_broadcaster.id = BROADCASTER_ID
+    mock_broadcaster.id = defaults.BROADCASTER_ID
     mock_broadcaster.access_token = access_token
 
     rewards = twitch.get_rewards(mock_broadcaster)
@@ -596,7 +490,7 @@ def test_get_rewards(app, mocker):
     assert request.method == "GET"
     assert request.headers == {"Client-ID": app.config["CLIENT_ID"]}
     assert request.params == {
-        "broadcaster_id": BROADCASTER_ID,
+        "broadcaster_id": defaults.BROADCASTER_ID,
         "only_manageable_rewards": "False",
     }
 
@@ -622,7 +516,7 @@ def test_get_firsts(app, mocker, init_db):
     database = init_db(app)
 
     broadcaster = mocker.Mock()
-    broadcaster.id = BROADCASTER_ID
+    broadcaster.id = defaults.BROADCASTER_ID
 
     users = {
         "user1": 5,
@@ -633,7 +527,7 @@ def test_get_firsts(app, mocker, init_db):
     # Add "firsts" to the database
     for user, count in users.items():
         for _ in range(0, count):
-            first = First(broadcaster_id=BROADCASTER_ID, name=user)
+            first = First(broadcaster_id=defaults.BROADCASTER_ID, name=user)
             database.session.add(first)
     database.session.commit()
 
@@ -650,13 +544,13 @@ def test_create_eventsub(app, mocker):
     """Test create_eventsub function."""
 
     mock_response = mocker.Mock()
-    mock_response.json.return_value = EVENTSUB_JSON
+    mock_response.json.return_value = defaults.EVENTSUB_JSON
     mock_request_twitch_api = mocker.patch("verifiedfirst.twitch.request_twitch_api_app")
     mock_request_twitch_api.return_value = mock_response
     mock_broadcaster = mocker.Mock()
-    mock_broadcaster.id = BROADCASTER_ID
+    mock_broadcaster.id = defaults.BROADCASTER_ID
 
-    eventsub_id = twitch.create_eventsub(mock_broadcaster, REWARD_ID)
+    eventsub_id = twitch.create_eventsub(mock_broadcaster, defaults.REWARD_ID)
 
     request_args = mock_request_twitch_api.call_args_list[0].args
 
@@ -668,8 +562,8 @@ def test_create_eventsub(app, mocker):
         "type": "channel.channel_points_custom_reward_redemption.add",
         "version": "1",
         "condition": {
-            "broadcaster_user_id": str(BROADCASTER_ID),
-            "reward_id": REWARD_ID,
+            "broadcaster_user_id": str(defaults.BROADCASTER_ID),
+            "reward_id": defaults.REWARD_ID,
         },
         "transport": {
             "method": "webhook",
@@ -677,7 +571,7 @@ def test_create_eventsub(app, mocker):
             "secret": app.config["EVENTSUB_SECRET"],
         },
     }
-    assert eventsub_id == EVENTSUB_ID
+    assert eventsub_id == defaults.EVENTSUB_ID
 
 
 def test_create_eventsub_403(app, mocker):  # pylint: disable=unused-argument
@@ -690,18 +584,18 @@ def test_create_eventsub_403(app, mocker):  # pylint: disable=unused-argument
     mock_broadcaster.access_token = access_token
 
     with pytest.raises(RequestException):
-        twitch.create_eventsub(mock_broadcaster, REWARD_ID)
+        twitch.create_eventsub(mock_broadcaster, defaults.REWARD_ID)
 
 
 def test_get_eventsubs(app, mocker):
     """Test get_eventsubs function."""
 
     mock_response = mocker.Mock()
-    mock_response.json.return_value = EVENTSUB_JSON
+    mock_response.json.return_value = defaults.EVENTSUB_JSON
     mock_request_twitch_api = mocker.patch("verifiedfirst.twitch.request_twitch_api_app")
     mock_request_twitch_api.return_value = mock_response
     mock_broadcaster = mocker.Mock()
-    mock_broadcaster.id = BROADCASTER_ID
+    mock_broadcaster.id = defaults.BROADCASTER_ID
 
     eventsubs = twitch.get_eventsubs(mock_broadcaster)
 
@@ -710,8 +604,8 @@ def test_get_eventsubs(app, mocker):
     request = request_args[0]
     assert request.method == "GET"
     assert request.headers == {"Client-ID": app.config["CLIENT_ID"]}
-    assert request.params == {"user_id": BROADCASTER_ID}
-    assert eventsubs == EVENTSUB_JSON["data"]
+    assert request.params == {"user_id": defaults.BROADCASTER_ID}
+    assert eventsubs == defaults.EVENTSUB_JSON["data"]
 
 
 def test_get_eventsubs_bad_format(app, mocker):  # pylint: disable=unused-argument
@@ -721,7 +615,7 @@ def test_get_eventsubs_bad_format(app, mocker):  # pylint: disable=unused-argume
     mock_request_twitch_api = mocker.patch("verifiedfirst.twitch.request_twitch_api_app")
     mock_request_twitch_api.return_value = mock_response
     mock_broadcaster = mocker.Mock()
-    mock_broadcaster.id = BROADCASTER_ID
+    mock_broadcaster.id = defaults.BROADCASTER_ID
 
     # test badly formatted data key
     mock_response.json.return_value = {"data": {}}
@@ -760,7 +654,7 @@ def test_delete_eventsub(app, mocker):  # pylint: disable=unused-argument
     mock_request_twitch_api = mocker.patch("verifiedfirst.twitch.request_twitch_api_app")
     mock_request_twitch_api.return_value = mock_response
 
-    twitch.delete_eventsub(EVENTSUB_ID)
+    twitch.delete_eventsub(defaults.EVENTSUB_ID)
 
 
 def test_update_eventsub(app, init_db, mocker):
@@ -772,13 +666,13 @@ def test_update_eventsub(app, init_db, mocker):
     mock_get_eventsubs.return_value = []
 
     mock_create_eventsub = mocker.patch("verifiedfirst.twitch.create_eventsub")
-    mock_create_eventsub.return_value = EVENTSUB_ID
+    mock_create_eventsub.return_value = defaults.EVENTSUB_ID
 
     mock_delete_eventsub = mocker.patch("verifiedfirst.twitch.delete_eventsub")
 
     broadcaster = Broadcaster(
-        id=BROADCASTER_ID,
-        name=BROADCASTER_NAME,
+        id=defaults.BROADCASTER_ID,
+        name=defaults.BROADCASTER_NAME,
         access_token="aaaaaaaaaaaaaaaaaaaaaaaa",
         refresh_token="bbbbbbbbbbbbbbbbbbbbbbbb",
     )
@@ -786,8 +680,8 @@ def test_update_eventsub(app, init_db, mocker):
     database.session.commit()
 
     # Test new eventsub gets created if it doesn't exist
-    matching_eventsub = twitch.update_eventsub(broadcaster, REWARD_ID)
-    updated_broadcaster = Broadcaster.query.filter(Broadcaster.id == BROADCASTER_ID).one()
+    matching_eventsub = twitch.update_eventsub(broadcaster, defaults.REWARD_ID)
+    updated_broadcaster = Broadcaster.query.filter(Broadcaster.id == defaults.BROADCASTER_ID).one()
 
     assert mock_create_eventsub.called_with()
     assert not mock_delete_eventsub.called
@@ -798,20 +692,20 @@ def test_update_eventsub(app, init_db, mocker):
     )
     mock_create_eventsub.assert_has_calls(
         [
-            mocker.call(broadcaster, REWARD_ID),
+            mocker.call(broadcaster, defaults.REWARD_ID),
         ]
     )
-    assert matching_eventsub == EVENTSUB_ID
-    assert updated_broadcaster.eventsub_id == EVENTSUB_ID
+    assert matching_eventsub == defaults.EVENTSUB_ID
+    assert updated_broadcaster.eventsub_id == defaults.EVENTSUB_ID
 
     # Test that eventsub is not updated if it is already correct in the database
     mock_get_eventsubs.reset_mock()
     mock_create_eventsub.reset_mock()
     mock_delete_eventsub.reset_mock()
-    mock_get_eventsubs.return_value = EVENTSUB_JSON["data"]
+    mock_get_eventsubs.return_value = defaults.EVENTSUB_JSON["data"]
 
-    matching_eventsub = twitch.update_eventsub(broadcaster, REWARD_ID)
-    updated_broadcaster = Broadcaster.query.filter(Broadcaster.id == BROADCASTER_ID).one()
+    matching_eventsub = twitch.update_eventsub(broadcaster, defaults.REWARD_ID)
+    updated_broadcaster = Broadcaster.query.filter(Broadcaster.id == defaults.BROADCASTER_ID).one()
 
     assert not mock_delete_eventsub.called
     assert not mock_create_eventsub.called
@@ -820,8 +714,8 @@ def test_update_eventsub(app, init_db, mocker):
             mocker.call(broadcaster),
         ]
     )
-    assert matching_eventsub == EVENTSUB_ID
-    assert updated_broadcaster.eventsub_id == EVENTSUB_ID
+    assert matching_eventsub == defaults.EVENTSUB_ID
+    assert updated_broadcaster.eventsub_id == defaults.EVENTSUB_ID
 
     # Test that the eventsub gets updated if the reward_id changes
     new_reward_id = "79f26a1a-fd0e-48d9-a0e8-a91247261e43"
@@ -829,16 +723,16 @@ def test_update_eventsub(app, init_db, mocker):
     mock_get_eventsubs.reset_mock()
     mock_create_eventsub.reset_mock()
     mock_delete_eventsub.reset_mock()
-    mock_get_eventsubs.return_value = EVENTSUB_JSON["data"]
+    mock_get_eventsubs.return_value = defaults.EVENTSUB_JSON["data"]
     mock_create_eventsub.return_value = new_eventsub_id
     broadcaster = updated_broadcaster
 
     matching_eventsub = twitch.update_eventsub(broadcaster, new_reward_id)
-    updated_broadcaster = Broadcaster.query.filter(Broadcaster.id == BROADCASTER_ID).one()
+    updated_broadcaster = Broadcaster.query.filter(Broadcaster.id == defaults.BROADCASTER_ID).one()
 
     mock_delete_eventsub.assert_has_calls(
         [
-            mocker.call(EVENTSUB_ID),
+            mocker.call(defaults.EVENTSUB_ID),
         ]
     )
     mock_get_eventsubs.assert_has_calls(
@@ -860,14 +754,14 @@ def test_add_first(app, init_db, patch_current_time):
     """Test add_first function."""
     with patch_current_time("2000-01-01"):
         init_db(app)
-        first1 = twitch.add_first(BROADCASTER_ID, "testuser1")
-        first2 = twitch.add_first(BROADCASTER_ID, "testuser2")
+        first1 = twitch.add_first(defaults.BROADCASTER_ID, "testuser1")
+        first2 = twitch.add_first(defaults.BROADCASTER_ID, "testuser2")
 
         assert first1.name == "testuser1"
-        assert first1.broadcaster_id == BROADCASTER_ID
+        assert first1.broadcaster_id == defaults.BROADCASTER_ID
         assert first1.timestamp == datetime(2000, 1, 1, 0, 0, 0)
         assert first2.name == "testuser2"
-        assert first2.broadcaster_id == BROADCASTER_ID
+        assert first2.broadcaster_id == defaults.BROADCASTER_ID
         assert first2.timestamp == datetime(2000, 1, 1, 0, 0, 0)
 
 
@@ -877,8 +771,8 @@ def test_update_reward(app, init_db):
     database = init_db(app)
 
     broadcaster = Broadcaster(
-        id=BROADCASTER_ID,
-        name=BROADCASTER_NAME,
+        id=defaults.BROADCASTER_ID,
+        name=defaults.BROADCASTER_NAME,
         access_token="aaaaaaaaaaaaaaaaaaaaaaaa",
         refresh_token="bbbbbbbbbbbbbbbbbbbbbbbb",
     )
@@ -886,11 +780,11 @@ def test_update_reward(app, init_db):
     database.session.commit()
 
     # test that the reward_id can be updated
-    reward_id = twitch.update_reward(broadcaster, REWARD_ID)
-    updated_broadcaster = Broadcaster.query.filter(Broadcaster.id == BROADCASTER_ID).one()
+    reward_id = twitch.update_reward(broadcaster, defaults.REWARD_ID)
+    updated_broadcaster = Broadcaster.query.filter(Broadcaster.id == defaults.BROADCASTER_ID).one()
 
-    assert reward_id == REWARD_ID
-    assert updated_broadcaster.reward_id == REWARD_ID
+    assert reward_id == defaults.REWARD_ID
+    assert updated_broadcaster.reward_id == defaults.REWARD_ID
 
 
 def test_get_broadcaster(app, init_db):
@@ -899,14 +793,14 @@ def test_get_broadcaster(app, init_db):
     database = init_db(app)
 
     expected_broadcaster = Broadcaster(
-        id=BROADCASTER_ID,
-        name=BROADCASTER_NAME,
+        id=defaults.BROADCASTER_ID,
+        name=defaults.BROADCASTER_NAME,
         access_token="aaaaaaaaaaaaaaaaaaaaaaaa",
         refresh_token="bbbbbbbbbbbbbbbbbbbbbbbb",
     )
     database.session.add(expected_broadcaster)
     database.session.commit()
 
-    broadcaster = twitch.get_broadcaster(BROADCASTER_ID)
+    broadcaster = twitch.get_broadcaster(defaults.BROADCASTER_ID)
 
     assert broadcaster == expected_broadcaster

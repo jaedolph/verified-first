@@ -8,7 +8,8 @@ const scope = 'channel:read:redemptions'
 const extensionUri = 'https://verifiedfirst.jaedolph.net'
 const redirectUri = extensionUri + '/auth'
 
-let authorization, clientId
+let title = 'Verified First Chatters'
+let authorization, clientId, configuredRewardId, config
 
 // get list of rewards for a channel after the broadcaster is authorized
 twitch.onAuthorized(function (auth) {
@@ -25,6 +26,20 @@ oauthButton.addEventListener('click', openAuthWindow)
 // config form to configure which channel points reward will be counted as a "first"
 const configForm = document.getElementById('config')
 configForm.addEventListener('submit', submitConfig)
+
+// read/parse the current config
+twitch.configuration.onChanged(function () {
+  if (twitch.configuration.broadcaster) {
+    console.log(twitch.configuration.broadcaster)
+    try {
+      config = JSON.parse(twitch.configuration.broadcaster.content)
+      title = config.title
+      configuredRewardId = config.rewardId
+    } catch (e) {
+      console.log('invalid config')
+    }
+  }
+})
 
 /**
 * Get the channel's rewards using the EBS and add them to a dropdown menu
@@ -47,15 +62,22 @@ function getRewards () {
   }).then(function (rewards) {
     // create config menu once rewards have been retrieved
     document.getElementById('config').innerHTML = `
+      <label for="panel_title">Leaderboard Title:</label><br>
+      <input type="text" id="panel_title" form="config" maxlength="26"><br><br>
       <label for="reward_select">Select your "First" channel points reward:</label><br>
-      <select name="reward_select" id="reward_select" form="config"></select>
+      <select name="reward_select" id="reward_select" form="config"></select><br><br>
       <input type="submit" value="Submit">`
+    document.getElementById('panel_title').value = title
 
     // add rewards to reward_select dropdown
     for (const reward of rewards) {
       const newOption = document.createElement('option')
       newOption.value = reward.id
       newOption.text = reward.title
+      // select the currently configured reward id if possible
+      if (reward.id === configuredRewardId) {
+        newOption.selected = true
+      }
       document.getElementById('reward_select').appendChild(newOption)
     }
   }).catch(function (error) {
@@ -89,6 +111,10 @@ function createEventsub (rewardId) {
     return response.json()
   }).then(function (eventsub) {
     console.log('created eventsub id=' + eventsub.eventsub_id)
+    // update config with the reward id (so the config form shows the currently selected reward)
+    config.rewardId = rewardId
+    twitch.configuration.set('broadcaster', '1', JSON.stringify(config))
+    configuredRewardId = rewardId
     document.getElementById('eventsub').innerHTML = 'Configuration successful'
   }).catch(function (error) {
     console.error('failed to create eventsub')
@@ -102,12 +128,20 @@ function createEventsub (rewardId) {
 * @param {Object} event - the submit event
 */
 function submitConfig (event) {
+  console.log('submitting config')
   event.preventDefault()
+
+  // get title
+  title = document.getElementById('panel_title').value
+
+  // update broadcaster config
+  config = JSON.parse(twitch.configuration.broadcaster.content)
+  config.title = title
+  twitch.configuration.set('broadcaster', '1', JSON.stringify(config))
 
   // get selected reward
   const rewardId = document.getElementById('reward_select').value
 
-  console.log('submitting config')
   // ensure the reward id is defined
   if (rewardId !== undefined) {
     console.log('creating eventsub for reward_id=' + rewardId)

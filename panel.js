@@ -14,6 +14,19 @@ twitch.onAuthorized(function (auth) {
   getFirsts(authorization)
 })
 
+// read/parse the current config
+twitch.configuration.onChanged(function () {
+  if (twitch.configuration.broadcaster) {
+    try {
+      const config = JSON.parse(twitch.configuration.broadcaster.content)
+      // set the title
+      document.getElementById('title').textContent = config.title
+    } catch (e) {
+      console.log('invalid config')
+    }
+  }
+})
+
 /**
 * Get first counts from the EBS and update the display
 * @param {String} authorization - authorization header to send to the EBS
@@ -41,7 +54,6 @@ function getFirsts (authorization) {
     const dateObject = new Date()
     const date = dateObject.toUTCString()
 
-    document.getElementById('heading').innerHTML = 'Verified First Chatters'
     document.getElementById('firsts').innerHTML = firstsString
     document.getElementById('lastupdated').innerHTML = 'Last updated: ' + date
   }).catch(function (error) {

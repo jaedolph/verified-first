@@ -113,8 +113,8 @@ def eventsub() -> Response:
         return make_response(challenge)
 
     if message_type == "notification":
-        broadcaster_id = request_data["event"]["broadcaster_user_id"]
-        user_id = request_data["event"]["user_id"]
+        broadcaster_id = int(request_data["event"]["broadcaster_user_id"])
+        user_id = int(request_data["event"]["user_id"])
         user_name = request_data["event"]["user_login"]
         reward_id = request_data["event"]["reward"]["id"]
 

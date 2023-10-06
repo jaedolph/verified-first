@@ -1,11 +1,10 @@
 // Config form for the "Verified First" extension
 
 'use strict'
-import { twitch } from './globals.js'
+import { twitch, extensionUri } from './globals.js'
 
 const twitchOuthUrl = 'https://id.twitch.tv/oauth2/authorize'
 const scope = 'channel:read:redemptions'
-const extensionUri = 'https://verifiedfirst.jaedolph.net'
 const redirectUri = extensionUri + '/auth'
 
 let title = 'Verified First Chatters'

@@ -540,6 +540,20 @@ def test_get_firsts(app, mocker, init_db):
     assert firsts["user3"] == users["user3"]
 
 
+def test_get_firsts_not_found(app, mocker, init_db):
+    """Test get_firsts returns an empty dictionary if no firsts exist."""
+
+    init_db(app)
+
+    broadcaster = mocker.Mock()
+    broadcaster.id = defaults.BROADCASTER_ID
+
+    # test firsts list is empty
+    firsts = twitch.get_firsts(broadcaster)
+
+    assert firsts == {}  # pylint: disable=use-implicit-booleaness-not-comparison
+
+
 def test_create_eventsub(app, mocker):
     """Test create_eventsub function."""
 
@@ -804,3 +818,13 @@ def test_get_broadcaster(app, init_db):
     broadcaster = twitch.get_broadcaster(defaults.BROADCASTER_ID)
 
     assert broadcaster == expected_broadcaster
+
+
+def test_get_broadcaster_not_found(app, init_db):
+    """Test get_broadcaster returns None if no matching broadcaster is found."""
+
+    init_db(app)
+
+    broadcaster = twitch.get_broadcaster(defaults.BROADCASTER_ID)
+
+    assert broadcaster == None  # pylint: disable=singleton-comparison

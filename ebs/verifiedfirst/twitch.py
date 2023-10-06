@@ -5,6 +5,7 @@ from typing import Any, List, Tuple
 from flask import current_app
 from requests import Request, Response, Session, codes, post
 from requests.exceptions import RequestException
+from sqlalchemy.exc import NoResultFound
 
 from verifiedfirst.models.broadcasters import Broadcaster
 from verifiedfirst.models.firsts import First
@@ -481,7 +482,12 @@ def get_broadcaster(broadcaster_id: int) -> Broadcaster | None:
     :param broadcaster_id: id of the broadcaster to retrieve
     :return: matching broadcaster object or None
     """
-    broadcaster = Broadcaster.query.filter(Broadcaster.id == broadcaster_id).one()
+
+    try:
+        broadcaster = Broadcaster.query.filter(Broadcaster.id == broadcaster_id).one()
+    except NoResultFound:
+        broadcaster = None
+
     assert isinstance(broadcaster, Broadcaster) or broadcaster is None
 
     return broadcaster

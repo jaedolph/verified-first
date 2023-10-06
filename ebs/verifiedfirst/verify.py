@@ -65,13 +65,9 @@ def verify_eventsub_message(request: Request) -> bool:
     message_timestamp = headers["Twitch-Eventsub-Message-Timestamp"]
     message_signature = headers["Twitch-Eventsub-Message-Signature"]
 
-    print(message_id, message_timestamp, message_signature, body)
-
     hmac_message = message_id.encode("utf-8") + message_timestamp.encode("utf-8") + body
-    print(hmac_message)
     try:
         hmac_value = f"sha256={get_hmac(hmac_message)}"
-        print(hmac_value)
     except TypeError as exp:
         current_app.logger.debug("failed to get hmac, %s", exp)
         return False

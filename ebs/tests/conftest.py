@@ -1,13 +1,18 @@
 """Fixtures and helper functions for testing."""
 from contextlib import contextmanager
 from datetime import datetime
+import base64
+import time
 
 import pytest
+import jwt
+
 from flask_sqlalchemy.extension import sa_event
 from freezegun import freeze_time
 
 from verifiedfirst import create_app, Config
 from verifiedfirst.database import db
+from . import defaults
 
 
 # pylint: disable=too-few-public-methods
@@ -71,3 +76,37 @@ def patch_time(time_to_freeze):  # pylint: disable=missing-type-doc
 def patch_current_time():
     """Fixture to use the patch_time context manager."""
     return patch_time
+
+
+@pytest.fixture(name="generate_jwt")
+def fixture_generate_jwt():
+    """Fixture used for generating a jwt for testing."""
+
+    def generate_jwt(
+        secret=TestConfig.EXTENSION_SECRET,
+        expiry=None,
+        channel_id=defaults.CHANNEL_ID,
+        role=defaults.ROLE,
+    ):
+        if not expiry:
+            expiry = int(time.time() + 999)
+
+        jwt_payload = {
+            "exp": expiry,
+            "opaque_user_id": "UG12X345T6J78",
+            "channel_id": channel_id,
+            "role": role,
+            "is_unlinked": "false",
+            "pubsub_perms": {
+                "listen": ["broadcast", "whisper-UG12X345T6J78"],
+                "send": ["broadcast", "whisper-*"],
+            },
+        }
+        jwt_token = jwt.encode(
+            payload=jwt_payload,
+            key=base64.b64decode(secret),
+        )
+
+        return jwt_token
+
+    return generate_jwt

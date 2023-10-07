@@ -53,31 +53,14 @@ def test_verify_eventsub_message(app, mocker):  # pylint: disable=unused-argumen
     assert not verified
 
 
-def test_verify_jwt(app, mocker):  # pylint: disable=unused-argument
+def test_verify_jwt(app, mocker, generate_jwt):  # pylint: disable=unused-argument
     """Test the verify_jwt function."""
 
     mock_request = mocker.Mock()
 
-    jwt_payload = {
-        "exp": int(time.time() + 999),
-        "opaque_user_id": "UG12X345T6J78",
-        "channel_id": defaults.CHANNEL_ID,
-        "role": defaults.ROLE,
-        "is_unlinked": "false",
-        "pubsub_perms": {
-            "listen": ["broadcast", "whisper-UG12X345T6J78"],
-            "send": ["broadcast", "whisper-*"],
-        },
-    }
-
-    jwt_token = jwt.encode(
-        payload=jwt_payload,
-        key=base64.b64decode(app.config["EXTENSION_SECRET"]),
-    )
-
     # test the valid jwt decodes correctly
     mock_request.headers = {
-        "Authorization": "Bearer " + jwt_token,
+        "Authorization": "Bearer " + generate_jwt(),
     }
     channel_id, role = verify.verify_jwt(mock_request)
     assert channel_id == defaults.CHANNEL_ID
@@ -100,11 +83,8 @@ def test_verify_jwt(app, mocker):  # pylint: disable=unused-argument
     )
 
     # test with expired jwt
-    jwt_payload["exp"] = int(time.time() - 10)
-    jwt_token = jwt.encode(
-        payload=jwt_payload,
-        key=base64.b64decode(app.config["EXTENSION_SECRET"]),
-    )
+    expiry = int(time.time() - 10)
+    jwt_token = generate_jwt(expiry=expiry)
     mock_request.headers = {
         "Authorization": "Bearer " + jwt_token,
     }

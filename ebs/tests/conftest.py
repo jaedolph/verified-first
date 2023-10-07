@@ -1,6 +1,7 @@
 """Fixtures and helper functions for testing."""
 from contextlib import contextmanager
 from datetime import datetime
+import os
 import base64
 import time
 
@@ -19,18 +20,55 @@ from . import defaults
 class TestConfig(Config):
     """Config suitable for testing."""
 
-    PREFIX = ""
     CLIENT_ID = "abcdefghijklmnopqrstuvwxyz1234"
     CLIENT_SECRET = "1234567890qwertyuiopasdfghjkla"
     EXTENSION_SECRET = "YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYQo="
     REDIRECT_URI = "https://twitch.hv1.jaedolph.net/auth"
-    TWITCH_API_BASEURL = "https://api.twitch.tv/helix"
     EVENTSUB_CALLBACK_URL = "https://verifiedfirst.jaedolph.net/eventsub"
-    REQUEST_TIMEOUT = 5
     EVENTSUB_SECRET = "secret1234!"
     TESTING = True
     SQLALCHEMY_DATABASE_URI = "sqlite://"
     LOG_LEVEL = "DEBUG"
+
+
+@pytest.fixture()
+def testconfig():
+    """Fixture to allow access to TestConfig class."""
+    return TestConfig
+
+
+@pytest.fixture()
+def integrationtestconfig(request):
+    """Fixture to allow access to IntegrationTestConfig class.
+
+    Also sets correct env vars.
+    """
+
+    class IntegrationTestConfig(TestConfig):
+        """Config with a file based sqllite db.
+
+        There seems to be issues using an in memory db for the integration tests
+        """
+
+        test_directory = os.path.dirname(request.module.__file__)
+        db_path = os.path.join(test_directory, "integration_test.db")
+        SQLALCHEMY_DATABASE_URI = f"sqlite:///{db_path}"
+
+    config_class_to_env(IntegrationTestConfig)
+    return IntegrationTestConfig
+
+
+def config_class_to_env(config_class):
+    """Sets environment variables from a config class."""
+    prefix = config_class.PREFIX
+    os.environ[f"{prefix}CLIENT_ID"] = config_class.CLIENT_ID
+    os.environ[f"{prefix}CLIENT_SECRET"] = config_class.CLIENT_SECRET
+    os.environ[f"{prefix}EXTENSION_SECRET"] = config_class.EXTENSION_SECRET
+    os.environ[f"{prefix}REDIRECT_URI"] = config_class.REDIRECT_URI
+    os.environ[f"{prefix}EVENTSUB_CALLBACK_URL"] = config_class.EVENTSUB_CALLBACK_URL
+    os.environ[f"{prefix}EVENTSUB_SECRET"] = config_class.EVENTSUB_SECRET
+    os.environ[f"{prefix}SQLALCHEMY_DATABASE_URI"] = config_class.SQLALCHEMY_DATABASE_URI
+    os.environ[f"{prefix}LOG_LEVEL"] = config_class.LOG_LEVEL
 
 
 @pytest.fixture()

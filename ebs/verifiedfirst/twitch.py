@@ -1,6 +1,7 @@
 """Functions related to the twitch api."""
 from collections import defaultdict
 from typing import Any, List, Tuple
+from datetime import datetime
 
 from flask import current_app
 from requests import Request, Response, Session, codes, post
@@ -284,13 +285,27 @@ def get_rewards(broadcaster: Broadcaster) -> list[Any]:
     return rewards
 
 
-def get_firsts(broadcaster: Broadcaster) -> dict[str, Any]:
+def get_firsts(
+    broadcaster: Broadcaster, start_time: datetime | None = None, end_time: datetime | None = None
+) -> dict[str, Any]:
     """Get total count of "firsts"for a specific broadcaster.
 
     :param broadcaster: broadcaster to count firsts for
+    :param start_time: count firsts at or after this date
+    :param end_time: count firsts at or before this date
     :return: dictionary of first counts by user e.g {"user1": 5, "user2": 3}
     """
-    firsts = First.query.filter(First.broadcaster_id == broadcaster.id).all()
+
+    if start_time is None:
+        start_time = datetime.min
+    if end_time is None:
+        end_time = datetime.max
+
+    firsts = First.query.filter(
+        First.broadcaster_id == broadcaster.id,
+        First.timestamp >= start_time,
+        First.timestamp <= end_time,
+    ).all()
 
     first_counts: dict[str, Any] = defaultdict(lambda: 0)
     for first in firsts:

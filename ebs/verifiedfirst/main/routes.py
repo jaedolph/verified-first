@@ -1,4 +1,5 @@
 """Main routes."""
+from datetime import datetime
 
 from flask import Blueprint, Response, abort, jsonify, make_response, request, current_app
 from requests import RequestException
@@ -23,7 +24,15 @@ def firsts(channel_id: int, role: str) -> Response:
     if broadcaster is None:
         abort(403, "broadcaster is not authed yet")
 
-    firsts_dict = twitch.get_firsts(broadcaster)
+    end_time = None
+    start_time = None
+    if "end_time" in request.args:
+        end_time = datetime.fromisoformat(request.args["end_time"])
+
+    if "start_time" in request.args:
+        start_time = datetime.fromisoformat(request.args["start_time"])
+
+    firsts_dict = twitch.get_firsts(broadcaster, end_time=end_time, start_time=start_time)
     if not firsts_dict:
         abort(404, "could not get firsts")
 

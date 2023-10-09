@@ -1,4 +1,6 @@
 """Tests for main routes."""
+from datetime import datetime
+
 from flask import url_for
 from requests import RequestException
 
@@ -21,10 +23,37 @@ def test_firsts(client, mocker):
     mock_get_firsts = mocker.patch("verifiedfirst.twitch.get_firsts")
     mock_get_firsts.return_value = firsts
 
+    # test with no time ranges
     resp = client.get(url_for("main.firsts"))
-
     mock_get_broadcaster.assert_called_with(defaults.CHANNEL_ID)
-    mock_get_firsts.assert_called_with(mock_broadcaster)
+    mock_get_firsts.assert_called_with(mock_broadcaster, start_time=None, end_time=None)
+    assert resp.status_code == 200
+    assert resp.json == firsts
+
+    # test with end time
+    resp = client.get(
+        url_for("main.firsts"),
+        query_string={
+            "end_time": "2020-01-01",
+        },
+    )
+    mock_get_firsts.assert_called_with(
+        mock_broadcaster, start_time=None, end_time=datetime(2020, 1, 1)
+    )
+    assert resp.status_code == 200
+    assert resp.json == firsts
+
+    # test with start and end time
+    resp = client.get(
+        url_for("main.firsts"),
+        query_string={
+            "end_time": "2020-01-01",
+            "start_time": "2019-01-01",
+        },
+    )
+    mock_get_firsts.assert_called_with(
+        mock_broadcaster, start_time=datetime(2019, 1, 1), end_time=datetime(2020, 1, 1)
+    )
     assert resp.status_code == 200
     assert resp.json == firsts
 
@@ -60,7 +89,7 @@ def test_firsts_no_firsts(client, mocker):
     resp = client.get(url_for("main.firsts"))
 
     mock_get_broadcaster.assert_called_with(defaults.CHANNEL_ID)
-    mock_get_firsts.assert_called_with(mock_broadcaster)
+    mock_get_firsts.assert_called_with(mock_broadcaster, start_time=None, end_time=None)
     assert resp.status_code == 404
     assert resp.json == {"error": "could not get firsts"}
 

@@ -540,6 +540,59 @@ def test_get_firsts(app, mocker, init_db):
     assert firsts["user3"] == users["user3"]
 
 
+def test_get_firsts_date_ranges(app, mocker, init_db, patch_current_time):
+    """Test get_firsts function."""
+
+    database = init_db(app)
+
+    broadcaster = mocker.Mock()
+    broadcaster.id = defaults.BROADCASTER_ID
+
+    with patch_current_time("2019-12-01"):
+        database.session.add(First(broadcaster_id=defaults.BROADCASTER_ID, name="user1"))
+        database.session.add(First(broadcaster_id=defaults.BROADCASTER_ID, name="user1"))
+        database.session.commit()
+
+    with patch_current_time("2020-02-01"):
+        database.session.add(First(broadcaster_id=defaults.BROADCASTER_ID, name="user1"))
+        database.session.add(First(broadcaster_id=defaults.BROADCASTER_ID, name="user2"))
+        database.session.add(First(broadcaster_id=defaults.BROADCASTER_ID, name="user2"))
+        database.session.add(First(broadcaster_id=defaults.BROADCASTER_ID, name="user3"))
+        database.session.commit()
+
+    with patch_current_time("2020-03-01"):
+        database.session.add(First(broadcaster_id=defaults.BROADCASTER_ID, name="user3"))
+        database.session.add(First(broadcaster_id=defaults.BROADCASTER_ID, name="user3"))
+        database.session.commit()
+
+    with patch_current_time("2020-03-02"):
+        firsts_all_time = twitch.get_firsts(broadcaster)
+        firsts_this_year = twitch.get_firsts(
+            broadcaster, start_time=datetime.fromisoformat("2020-01-01")
+        )
+        firsts_this_month = twitch.get_firsts(
+            broadcaster, start_time=datetime.fromisoformat("2020-03-01")
+        )
+
+    # check first counts (all time)
+    assert len(firsts_all_time.keys()) == 3
+    assert firsts_all_time["user1"] == 3
+    assert firsts_all_time["user2"] == 2
+    assert firsts_all_time["user3"] == 3
+
+    # check first counts (this year)
+    assert len(firsts_this_year.keys()) == 3
+    assert firsts_this_year["user1"] == 1
+    assert firsts_this_year["user2"] == 2
+    assert firsts_this_year["user3"] == 3
+
+    # check first counts (this month)
+    assert len(firsts_this_month.keys()) == 1
+    assert "user1" not in firsts_this_month.keys()
+    assert "user2" not in firsts_this_month.keys()
+    assert firsts_this_month["user3"] == 2
+
+
 def test_get_firsts_not_found(app, mocker, init_db):
     """Test get_firsts returns an empty dictionary if no firsts exist."""
 

@@ -30,3 +30,24 @@ blockquote {
 blockquote p {
     padding-left: 10px;
 }
+
+.footer {
+    bottom: 0;
+    position: fixed;
+    width: 100%;
+    margin-left: 0px;
+}
+
+.timerange button {
+    border: none;
+    background-color: inherit;
+    color: inherit;
+    font-family: inherit;
+    font-weight: 400;
+    font-size: 13px;
+}
+
+.timerange button:hover {
+    background: rgb(169, 112, 255);
+    color: rgb(14, 14, 16);
+}

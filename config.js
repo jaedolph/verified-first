@@ -8,6 +8,7 @@ const scope = 'channel:read:redemptions'
 const redirectUri = extensionUri + '/auth'
 
 let title = 'Verified First Chatters'
+let configuredTimeRange = null
 let authorization, clientId, configuredRewardId, config
 
 // get list of rewards for a channel after the broadcaster is authorized
@@ -34,6 +35,7 @@ twitch.configuration.onChanged(function () {
       config = JSON.parse(twitch.configuration.broadcaster.content)
       title = config.title
       configuredRewardId = config.rewardId
+      configuredTimeRange = config.timeRange
     } catch (e) {
       console.log('invalid config')
     }
@@ -65,8 +67,26 @@ function getRewards () {
       <input type="text" id="panel_title" form="config" maxlength="26"><br><br>
       <label for="reward_select">Select your "First" channel points reward:</label><br>
       <select name="reward_select" id="reward_select" form="config"></select><br><br>
+      <label for="time_range">Default time range:</label><br>
+      <select name="time_range" id="time_range" form="config">
+        <option id="month" value="month">Month</option>
+        <option id="year" value="year">Year</option>
+        <option id="all_time" value="all_time">All Time</option>
+      </select><br><br>
       <input type="submit" value="Submit">`
     document.getElementById('panel_title').value = title
+
+    // ensure the currently configured time range is selected
+    switch (configuredTimeRange) {
+      case 'month':
+        document.getElementById('time_range').options.namedItem('month').selected = true
+        break
+      case 'year':
+        document.getElementById('time_range').options.namedItem('year').selected = true
+        break
+      default:
+        document.getElementById('time_range').options.namedItem('all_time').selected = true
+    }
 
     // add rewards to reward_select dropdown
     for (const reward of rewards) {
@@ -133,9 +153,14 @@ function submitConfig (event) {
   // get title
   title = document.getElementById('panel_title').value
 
+  // get time range
+  const timeRange = document.getElementById('time_range').value
+
   // update broadcaster config
   config = JSON.parse(twitch.configuration.broadcaster.content)
   config.title = title
+  config.timeRange = timeRange
+
   twitch.configuration.set('broadcaster', '1', JSON.stringify(config))
 
   // get selected reward

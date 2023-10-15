@@ -3,14 +3,30 @@
 'use strict'
 import { twitch, extensionUri } from './globals.js'
 
-const firstsUrl = extensionUri + '/firsts'
-
 let authorization
+let timeRange = null
+
+const monthButton = document.getElementById('month')
+const yearButton = document.getElementById('year')
+const allTimeButton = document.getElementById('all_time')
+
+monthButton.addEventListener('click', getFirstsMonth)
+yearButton.addEventListener('click', getFirstsYear)
+allTimeButton.addEventListener('click', getFirstsAllTime)
 
 // Get "fists" counts after the user is authorized
 twitch.onAuthorized(function (auth) {
   authorization = 'Bearer ' + auth.token
-  getFirsts(authorization)
+  switch (timeRange) {
+    case 'month':
+      getFirstsMonth()
+      break
+    case 'year':
+      getFirstsYear()
+      break
+    default:
+      getFirstsAllTime()
+  }
 })
 
 // read/parse the current config
@@ -20,6 +36,8 @@ twitch.configuration.onChanged(function () {
       const config = JSON.parse(twitch.configuration.broadcaster.content)
       // set the title
       document.getElementById('title').textContent = config.title
+      // set the time range
+      timeRange = config.timeRange
     } catch (e) {
       console.log('invalid config')
     }
@@ -29,8 +47,13 @@ twitch.configuration.onChanged(function () {
 /**
 * Get first counts from the EBS and update the display
 * @param {String} authorization - authorization header to send to the EBS
+* @param {Date} startTime - get all firsts from this date
 */
-function getFirsts (authorization) {
+function getFirsts (authorization, startTime) {
+  let firstsUrl = extensionUri + '/firsts'
+  if (startTime) {
+    firstsUrl = firstsUrl + '?' + new URLSearchParams({ start_time: startTime.toISOString() })
+  }
   fetch(
     firstsUrl, {
       headers: {
@@ -87,4 +110,48 @@ function groupFirsts (firsts) {
   countsArray.sort().reverse()
 
   return countsArray
+}
+
+/**
+* Get first counts for current month
+*/
+function getFirstsMonth () {
+  // set start time to the first day of the current month
+  const currentTime = new Date()
+  const startTime = new Date(Date.UTC(currentTime.getUTCFullYear(), currentTime.getUTCMonth(), 1))
+
+  getFirsts(authorization, startTime)
+
+  // highlight the "Month" button
+  monthButton.innerHTML = '<strong>Month</strong>'
+  yearButton.innerHTML = 'Year'
+  allTimeButton.innerHTML = 'All Time'
+}
+
+/**
+* Get first counts for current year
+*/
+function getFirstsYear () {
+  // set start time to the first day of the current year
+  const currentTime = new Date()
+  const startTime = new Date(Date.UTC(currentTime.getUTCFullYear(), 0, 1))
+
+  getFirsts(authorization, startTime)
+
+  // highlight the "Year" button
+  monthButton.innerHTML = 'Month'
+  yearButton.innerHTML = '<strong>Year</strong>'
+  allTimeButton.innerHTML = 'All Time'
+}
+
+/**
+* Get first counts for all time
+*/
+function getFirstsAllTime () {
+  getFirsts(authorization, null)
+
+  // highlight the "All Time" button
+  monthButton.innerHTML = 'Month'
+  yearButton.innerHTML = 'Year'
+  allTimeButton.innerHTML = '<strong>All Time</strong>'
 }

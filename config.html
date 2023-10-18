@@ -8,8 +8,17 @@
 </head>
 <html>
   <body id="root">
-    <button id="oauth" type="button">Connect to twitch</button>
+    <h3>You must be an affiliate or partner to use this extension as it relies on channel points</h3><br>
+    <h2>1. Configure "First" channel points reward</h2>
+    <p>Create a new channel points reward called "First" (or something similar). </p>
+    <p>Viewers can claim this reward to show that they were the first to get to your stream.</p>
+    <p>Set the cost to 1 point. Tick "Cooldown & Limits" and set "Limit Redemptions Per Stream" to 1 so that only one viewer can claim it per stream.</p>
+    <p>If you already have a reward set up like this, you don't need to create a new one.</p>
+    <p><a href="https://link.twitch.tv/myChannelPoints" target="_blank">Click here</a> to configure a new reward.</p>
+    <h2>2. Connect your Twitch account so the extension can view your channel points rewards</h2>
+    <button id="oauth" type="button">Connect to Twitch</button>
     <p id="auth"></p>
+    <h2>3. Configure extension</h2>
     <form id="config"></form>
     <p id="eventsub"></p>
     <noscript>

@@ -12,11 +12,17 @@ let configuredTimeRange = null
 let authorization, clientId, configuredRewardId, config, authWindow
 
 // get list of rewards for a channel after the broadcaster is authorized
-twitch.onAuthorized(function (auth) {
+twitch.onAuthorized(async function (auth) {
   authorization = 'Bearer ' + auth.token
   clientId = auth.clientId
 
-  displayConfigForm()
+  // if the user has connected their twitch account to the extension, display the config form
+  const isAuthorized = await checkAuth()
+  if (isAuthorized) {
+    displayConfigForm()
+  } else {
+    document.getElementById('config').innerHTML = '<p>Please connect to Twitch before configuring.</p>'
+  }
 })
 
 // open the auth window when the user clicks the oauthButton
@@ -47,14 +53,45 @@ twitch.configuration.onChanged(function () {
 /**
 * Get list of the broadcaster's rewards and display the config menu
 */
-function displayConfigForm () {
+async function displayConfigForm () {
   getRewards().then((rewards) => {
     authText.innerHTML = '<p>Connected to Twitch successfully.</p>'
     oauthButton.disabled = true
     renderConfigForm(rewards, configuredTitle, configuredTimeRange, configuredRewardId)
   }).catch(function (error) {
+    document.getElementById('config').innerHTML = '<p>ERROR: could not render configuration form.</p>'
     console.error(error)
   })
+}
+
+/**
+* Checks if the broadcaster's twitch API auth credentials stored in the EBS are valid
+* @return {Boolean} true if the broadcaster's auth credentials are valid
+*/
+async function checkAuth () {
+  const authCheckUrl = extensionUri + '/auth/check'
+
+  const response = await fetch(authCheckUrl, {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: authorization
+    }
+  }).catch(function (error) {
+    document.getElementById('config').innerHTML = ''
+    console.error('failed to retrieve rewards')
+    console.error(error)
+  })
+
+  if (!response.ok) {
+    const responseText = await response.text()
+    const errorMsg = 'auth check failed: ' + response.status + ' ' + responseText
+    console.error(errorMsg)
+    return false
+  }
+
+  console.log('auth check passed')
+  return true
 }
 
 /**

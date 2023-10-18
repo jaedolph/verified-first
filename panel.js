@@ -9,6 +9,8 @@ let timeRange = null
 const monthButton = document.getElementById('month')
 const yearButton = document.getElementById('year')
 const allTimeButton = document.getElementById('all_time')
+const firstsText = document.getElementById('firsts')
+const lastUpdatedText = document.getElementById('lastupdated')
 
 monthButton.addEventListener('click', getFirstsMonth)
 yearButton.addEventListener('click', getFirstsYear)
@@ -38,8 +40,9 @@ twitch.configuration.onChanged(function () {
       document.getElementById('title').textContent = config.title
       // set the time range
       timeRange = config.timeRange
-    } catch (e) {
-      console.log('invalid config')
+    } catch (error) {
+      console.error('invalid config')
+      console.error(error)
     }
   }
 })
@@ -49,23 +52,38 @@ twitch.configuration.onChanged(function () {
 * @param {String} authorization - authorization header to send to the EBS
 * @param {Date} startTime - get all firsts from this date
 */
-function getFirsts (authorization, startTime) {
+async function getFirsts (authorization, startTime) {
   let firstsUrl = extensionUri + '/firsts'
   if (startTime) {
     firstsUrl = firstsUrl + '?' + new URLSearchParams({ start_time: startTime.toISOString() })
   }
-  fetch(
-    firstsUrl, {
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: authorization
+
+  try {
+    const response = await fetch(
+      firstsUrl, {
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: authorization
+        }
       }
-    }).then(function (response) {
-    if (!response.ok) {
-      return response.text().then(text => { throw new Error(text) })
+    )
+
+    // 404 response means the extension is configured but no "firsts" are in the database yet
+    if (response.status === 404) {
+      firstsText.innerHTML = 'No one has been first yet ¯\\_(ツ)_/¯'
+      return
     }
-    return response.json()
-  }).then(function (firsts) {
+
+    // other errors could mean the extension is not configured yet
+    if (!response.ok) {
+      firstsText.innerHTML = 'Could not get leaderboard.<br>The extension may not be configured yet.'
+      const errorMsg = await response.text()
+      console.error(errorMsg)
+      return
+    }
+
+    // group firsts and display leaderboard
+    const firsts = await response.json()
     const firstsGrouped = groupFirsts(firsts)
     let firstsString = ''
 
@@ -76,12 +94,12 @@ function getFirsts (authorization, startTime) {
     const dateObject = new Date()
     const date = dateObject.toUTCString()
 
-    document.getElementById('firsts').innerHTML = firstsString
-    document.getElementById('lastupdated').innerHTML = 'Last updated: ' + date
-  }).catch(function (error) {
-    console.error('failed to get firsts')
+    firstsText.innerHTML = firstsString
+    lastUpdatedText.innerHTML = 'Last updated: ' + date
+  } catch (error) {
     console.error(error)
-  })
+    firstsText.innerHTML = 'ERROR: Could not get leaderboard<br>(╯°□°）╯︵ ┻━┻'
+  }
 }
 
 /**

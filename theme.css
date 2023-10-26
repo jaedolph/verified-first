@@ -31,6 +31,12 @@ blockquote p {
     padding-left: 10px;
 }
 
+.firsts {
+    height: 370px;
+    overflow: scroll;
+    overflow-x: hidden;
+}
+
 .footer {
     bottom: 0;
     position: fixed;

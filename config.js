@@ -1,15 +1,16 @@
 // Config form for the "Verified First" extension
 
 'use strict'
-import { twitch, extensionUri } from './globals.js'
+import { twitch, extensionUri, defaultTitle } from './globals.js'
 
 const twitchOuthUrl = 'https://id.twitch.tv/oauth2/authorize'
 const scope = 'channel:read:redemptions'
 const redirectUri = extensionUri + '/auth'
 
-let configuredTitle = 'Verified First Chatters'
+let configuredTitle = defaultTitle
 let configuredTimeRange = null
-let authorization, clientId, configuredRewardId, config, authWindow
+let config = {}
+let authorization, clientId, configuredRewardId, authWindow
 
 // get list of rewards for a channel after the broadcaster is authorized
 twitch.onAuthorized(async function (auth) {
@@ -36,17 +37,26 @@ configForm.addEventListener('submit', submitConfig)
 
 // read/parse the current config
 twitch.configuration.onChanged(function () {
+  console.log('getting config config')
   if (twitch.configuration.broadcaster) {
     try {
       console.log('current config: ' + twitch.configuration.broadcaster.content)
       config = JSON.parse(twitch.configuration.broadcaster.content)
-      configuredTitle = config.title
+      if (typeof config !== 'object') {
+        throw new Error('could not parse config')
+      }
+      if (config.title) {
+        configuredTitle = config.title
+      }
       configuredRewardId = config.rewardId
       configuredTimeRange = config.timeRange
     } catch (error) {
       console.error('invalid config')
       console.error(error)
+      config = {}
     }
+  } else {
+    console.log('config is empty')
   }
 })
 
@@ -220,7 +230,6 @@ async function submitConfig (event) {
   const timeRange = document.getElementById('time_range').value
 
   // update broadcaster config
-  config = JSON.parse(twitch.configuration.broadcaster.content)
   config.title = title
   config.timeRange = timeRange
 

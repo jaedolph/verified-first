@@ -1,10 +1,11 @@
 // The "Verified First Chatters" panel displayed to viewers
 
 'use strict'
-import { twitch, extensionUri } from './globals.js'
+import { twitch, extensionUri, defaultTitle } from './globals.js'
 
 let authorization
 let timeRange = null
+let title = defaultTitle
 
 const monthButton = document.getElementById('month')
 const yearButton = document.getElementById('year')
@@ -36,14 +37,20 @@ twitch.configuration.onChanged(function () {
   if (twitch.configuration.broadcaster) {
     try {
       const config = JSON.parse(twitch.configuration.broadcaster.content)
+      if (typeof config !== 'object') {
+        throw new Error('could not parse config')
+      }
       // set the title
-      document.getElementById('title').textContent = config.title
+      if (config.title) {
+        title = config.title
+      }
       // set the time range
       timeRange = config.timeRange
     } catch (error) {
       console.error('invalid config')
       console.error(error)
     }
+    document.getElementById('title').textContent = title
   }
 })
 

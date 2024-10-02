@@ -57,3 +57,8 @@ blockquote p {
     background: rgb(169, 112, 255);
     color: rgb(14, 14, 16);
 }
+
+.hidden {
+    visibility: hidden;
+    max-height: 0;
+}

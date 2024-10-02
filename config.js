@@ -37,7 +37,7 @@ configForm.addEventListener('submit', submitConfig)
 
 // read/parse the current config
 twitch.configuration.onChanged(function () {
-  console.log('getting config config')
+  console.log('getting current config')
   if (twitch.configuration.broadcaster) {
     try {
       console.log('current config: ' + twitch.configuration.broadcaster.content)

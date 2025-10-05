@@ -1,4 +1,4 @@
-FROM docker.io/library/python:3.11-slim
+FROM docker.io/library/python:3.11.10-slim
 
 ENV GUNICORN_CMD_ARGS="\
     --bind 0.0.0.0:5000 \
@@ -10,7 +10,7 @@ WORKDIR /usr/src/app
 
 COPY . /usr/src/app
 
-RUN pip install --no-cache-dir .
+RUN pip install --no-cache-dir -r requirements.txt .
 
 USER 1001
 

@@ -2,7 +2,7 @@
 [project]
 name = "verifiedfirst"
 description = "Backend for Verified First twitch extension"
-version = "0.2.3"
+version = "0.2.4"
 authors = [
     { name = "Jaedolph - Lord of Games" }
 ]

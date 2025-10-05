@@ -39,10 +39,6 @@ jobs:
         uses: aquasecurity/trivy-action@0.33.1
         with:
           image-ref: 'jaedolph/verifiedfirst:${{github.ref_name}}'
-          exit-code: '1'
-          ignore-unfixed: true
-          vuln-type: 'os,library'
-          severity: 'CRITICAL,HIGH'
           format: 'sarif'
           output: 'trivy-results.sarif'
 

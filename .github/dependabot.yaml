@@ -3,15 +3,11 @@ updates:
   - package-ecosystem: "npm"
     directory: "/"
     schedule:
-      interval: "weekly"
-  - package-ecosystem: "python"
+      interval: "daily"
+  - package-ecosystem: "pip"
     directory: "/ebs"
     schedule:
-      interval: "weekly"
-  - package-ecosystem: "python"
-    directory: "/"
-    schedule:
-      interval: "weekly"
+      interval: "daily"
   - package-ecosystem: "docker"
     directory: "/"
     schedule:

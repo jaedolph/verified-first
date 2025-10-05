@@ -12,4 +12,4 @@ jobs:
     - name: Install modules
       run: yarn
     - name: Run ESLint
-      run: node_modules/eslint/bin/eslint.js  *.js
+      run: node_modules/eslint/bin/eslint.js  *.js *.mjs

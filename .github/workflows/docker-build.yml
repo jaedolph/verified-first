@@ -25,7 +25,8 @@ jobs:
             --platform linux/amd64,linux/arm64 \
             -t jaedolph/verifiedfirst:${{github.ref_name}} \
             -t jaedolph/verifiedfirst:latest \
-            .
+            --load \
+            ebs/
 
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@0.33.1

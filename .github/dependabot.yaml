@@ -9,7 +9,7 @@ updates:
     schedule:
       interval: "daily"
   - package-ecosystem: "docker"
-    directory: "/"
+    directory: "/ebs"
     schedule:
       interval: "daily"
   - package-ecosystem: "github-actions"

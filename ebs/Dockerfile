@@ -1,4 +1,4 @@
-FROM docker.io/library/python:3.11.10-slim
+FROM docker.io/library/python:3.13.7-slim
 
 ENV GUNICORN_CMD_ARGS="\
     --bind 0.0.0.0:5000 \

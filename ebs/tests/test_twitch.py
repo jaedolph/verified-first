@@ -750,7 +750,6 @@ def test_update_eventsub(app, init_db, mocker):
     matching_eventsub = twitch.update_eventsub(broadcaster, defaults.REWARD_ID)
     updated_broadcaster = Broadcaster.query.filter(Broadcaster.id == defaults.BROADCASTER_ID).one()
 
-    assert mock_create_eventsub.called_with()
     assert not mock_delete_eventsub.called
     mock_get_eventsubs.assert_has_calls(
         [

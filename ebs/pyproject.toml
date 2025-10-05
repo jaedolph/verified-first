@@ -41,3 +41,8 @@ max-args = 10
 max-attributes = 10
 generated-members = "codes.*"
 disable = ["fixme"]
+
+[tool.pytest.ini_options]
+filterwarnings = [
+    "ignore:unclosed database in <sqlite3.Connection object at:ResourceWarning",
+]

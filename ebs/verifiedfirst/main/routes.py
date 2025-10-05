@@ -2,6 +2,7 @@
 from datetime import datetime
 
 from flask import Blueprint, Response, abort, jsonify, make_response, request, current_app
+from markupsafe import escape
 from requests import RequestException
 
 from verifiedfirst import twitch, verify
@@ -119,7 +120,7 @@ def eventsub() -> Response:
     if message_type == "webhook_callback_verification":
         challenge = request_data["challenge"]
         current_app.logger.info("responding to challenge: %s", challenge)
-        return make_response(challenge)
+        return make_response(escape(challenge), 200, {"Content-Type": "text/plain"})
 
     if message_type == "notification":
         broadcaster_id = int(request_data["event"]["broadcaster_user_id"])

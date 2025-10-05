@@ -12,7 +12,7 @@ click==8.3.0
     # via flask
 cryptography==46.0.2
     # via pyjwt
-flask==2.3.3
+flask==3.1.2
     # via
     #   verifiedfirst (pyproject.toml)
     #   flask-cors

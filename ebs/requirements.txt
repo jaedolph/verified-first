@@ -38,7 +38,7 @@ markupsafe==3.0.3
     #   werkzeug
 packaging==25.0
     # via gunicorn
-psycopg2-binary==2.9.10
+psycopg2-binary==2.9.11
     # via verifiedfirst (pyproject.toml)
 pycparser==2.23
     # via cffi

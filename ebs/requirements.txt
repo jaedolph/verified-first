@@ -2,7 +2,7 @@
 #    uv pip compile pyproject.toml -o requirements.txt
 blinker==1.9.0
     # via flask
-certifi==2025.10.5
+certifi==2025.11.12
     # via requests
 cffi==2.0.0
     # via cryptography

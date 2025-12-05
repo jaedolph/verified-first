@@ -21,7 +21,7 @@ flask-cors==6.0.1
     # via verifiedfirst (pyproject.toml)
 flask-sqlalchemy==3.1.1
     # via verifiedfirst (pyproject.toml)
-greenlet==3.2.4
+greenlet==3.3.0
     # via sqlalchemy
 gunicorn==23.0.0
     # via verifiedfirst (pyproject.toml)

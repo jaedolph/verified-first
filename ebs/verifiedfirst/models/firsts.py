@@ -1,6 +1,7 @@
 """firsts.py."""
+
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, UTC
 
 from verifiedfirst.database import db
 
@@ -12,5 +13,7 @@ class First(db.Model):  # type: ignore
 
     id: int = db.Column(db.Integer, primary_key=True)
     name: str = db.Column(db.String, nullable=False)
-    timestamp: datetime = db.Column(db.DateTime, default=datetime.utcnow)
+    timestamp: datetime = db.Column(
+        db.DateTime, default=lambda: datetime.now(UTC).replace(tzinfo=None)
+    )
     broadcaster_id: int = db.Column(db.Integer, nullable=False)

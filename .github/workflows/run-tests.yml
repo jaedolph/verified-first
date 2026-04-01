@@ -3,8 +3,12 @@ name: Run tox tests
 on:
   push:
     branches: [ "main" ]
+    paths:
+    - "ebs/**"
   pull_request:
     branches: [ "main" ]
+    paths:
+    - "ebs/**"
 
 permissions:
   contents: read

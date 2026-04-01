@@ -1,6 +1,6 @@
 """Fixtures and helper functions for testing."""
 from contextlib import contextmanager
-from datetime import datetime
+from datetime import datetime, UTC
 import os
 import base64
 import time
@@ -101,7 +101,7 @@ def patch_time(time_to_freeze):  # pylint: disable=missing-type-doc
     with freeze_time(time_to_freeze) as frozen_time:
 
         def set_timestamp(mapper, connection, target):  # pylint: disable=unused-argument
-            now = datetime.utcnow()
+            now = datetime.now(UTC)
             if hasattr(target, "timestamp"):
                 target.timestamp = now
 

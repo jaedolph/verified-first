@@ -41,6 +41,15 @@ EVENTSUB_ID = "26b1c993-bfcf-44d9-b876-379dacafe75a"
 REWARD_ID = "536b13c5-8f49-49b9-81e1-18e52b028919"
 TEST_USER_NAME = "testuser"
 TEST_USER_ID = 11223344
+USERS_LOOKUP_JSON = {
+    "data": [
+        {
+            "id": str(TEST_USER_ID),
+            "login": TEST_USER_NAME,
+            "display_name": TEST_USER_NAME,
+        }
+    ]
+}
 EVENTSUB_JSON = {
     "total": 1,
     "data": [

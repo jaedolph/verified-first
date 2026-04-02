@@ -11,6 +11,8 @@ from verifiedfirst.database import db
 class User(db.Model):  # type: ignore
     """Database model to cache Twitch user information."""
 
+    __tablename__ = "twitch_user"
+
     id: int = db.Column(db.Integer, primary_key=True)
     name: str = db.Column(db.String, nullable=False)
     last_seen: datetime = db.Column(

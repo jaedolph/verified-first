@@ -20,5 +20,5 @@ class First(db.Model):  # type: ignore
         db.DateTime, default=lambda: datetime.now(UTC).replace(tzinfo=None)
     )
     broadcaster_id: int = db.Column(db.Integer, nullable=False)
-    user_id: Optional[int] = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True)
+    user_id: Optional[int] = db.Column(db.Integer, db.ForeignKey("twitch_user.id"), nullable=True)
     user: ClassVar = db.relationship("User", foreign_keys="[First.user_id]")

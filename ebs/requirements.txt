@@ -36,7 +36,7 @@ markupsafe==3.0.3
     #   flask
     #   jinja2
     #   werkzeug
-packaging==25.0
+packaging==26.0
     # via gunicorn
 psycopg2-binary==2.9.11
     # via verifiedfirst (pyproject.toml)

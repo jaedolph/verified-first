@@ -136,7 +136,7 @@ def eventsub() -> Response:
             reward_id,
         )
         # TODO: check reward id is correct, check for duplicate message ids
-        first = twitch.add_first(broadcaster_id, user_name)
+        first = twitch.add_first(broadcaster_id, user_id, user_name)
 
         return make_response(jsonify(first))
 

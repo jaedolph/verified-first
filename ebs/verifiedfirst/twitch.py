@@ -10,6 +10,7 @@ from sqlalchemy.exc import NoResultFound
 
 from verifiedfirst.models.broadcasters import Broadcaster
 from verifiedfirst.models.firsts import First
+from verifiedfirst.models.users import User
 from verifiedfirst.database import db
 
 
@@ -307,10 +308,23 @@ def get_firsts(
         First.timestamp <= end_time,
     ).all()
 
-    first_counts: dict[str, Any] = defaultdict(lambda: 0)
+    # Aggregate by user_id for rows that have one (using the current cached username),
+    # and by name for legacy rows with no user_id.
+    counts_by_user_id: dict[int, int] = defaultdict(lambda: 0)
+    counts_by_name: dict[str, int] = defaultdict(lambda: 0)
     for first in firsts:
-        user_name = first.name
-        first_counts[user_name] += 1
+        if first.user_id is not None:
+            counts_by_user_id[first.user_id] += 1
+        else:
+            counts_by_name[first.name] += 1
+
+    first_counts: dict[str, Any] = {}
+    for user_id, count in counts_by_user_id.items():
+        user = db.session.get(User, user_id)
+        assert user is not None
+        first_counts[user.name] = count
+    for name, count in counts_by_name.items():
+        first_counts[name] = first_counts.get(name, 0) + count
 
     return first_counts
 
@@ -477,14 +491,71 @@ def update_reward(broadcaster: Broadcaster, reward_id: str) -> str:
     return reward_id
 
 
-def add_first(broadcaster_id: int, user_name: str) -> First:
+def get_users_by_login(logins: List[str]) -> dict[str, int]:
+    """Look up Twitch users by login name and return a mapping of login -> user_id.
+
+    The Twitch API accepts up to 100 logins per request. Logins not found in the API response (e.g.
+    because the username no longer exists) are omitted from the result.
+
+    :param logins: list of Twitch login names to look up
+    :raises RequestException: if the request fails
+    :return: dict mapping login name to numeric Twitch user id
+    """
+    login_to_id: dict[str, int] = {}
+
+    # Twitch /users endpoint accepts up to 100 logins per request
+    batch_size = 100
+    for i in range(0, len(logins), batch_size):
+        batch = logins[i : i + batch_size]
+        req = Request(
+            method="GET",
+            url=f"{current_app.config['TWITCH_API_BASEURL']}/users",
+            headers={"Client-ID": current_app.config["CLIENT_ID"]},
+            params=[("login", login) for login in batch],
+        )
+        try:
+            resp = request_twitch_api_app(req)
+            users = resp.json()["data"]
+            assert isinstance(users, list)
+        except (RequestException, KeyError, AssertionError) as exp:
+            raise RequestException("could not look up users by login") from exp
+
+        for user in users:
+            login_to_id[user["login"]] = int(user["id"])
+
+    return login_to_id
+
+
+def upsert_user(user_id: int, user_name: str) -> User:
+    """Insert or update a user in the User cache table.
+
+    :param user_id: numeric Twitch user id
+    :param user_name: current Twitch login name for the user
+    :return: User object
+    """
+    from datetime import UTC  # pylint: disable=import-outside-toplevel
+
+    user = db.session.get(User, user_id)
+    if user is None:
+        user = User(id=user_id, name=user_name)
+        db.session.add(user)
+    else:
+        user.name = user_name
+        user.last_seen = datetime.now(UTC).replace(tzinfo=None)
+    db.session.commit()
+    return user
+
+
+def add_first(broadcaster_id: int, user_id: int, user_name: str) -> First:
     """Adds a "first" entry to the database.
 
     :param broadcaster_id: id of the broadcaster to add the first entry for
-    :param user_name: name of the user who was first
+    :param user_id: numeric Twitch id of the user who was first
+    :param user_name: login name of the user who was first
     :return: First object that was created
     """
-    first = First(broadcaster_id=broadcaster_id, name=user_name)
+    upsert_user(user_id, user_name)
+    first = First(broadcaster_id=broadcaster_id, name=user_name, user_id=user_id)
     db.session.add(first)
     db.session.commit()
 

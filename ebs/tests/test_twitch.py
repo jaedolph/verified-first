@@ -588,8 +588,8 @@ def test_get_firsts_date_ranges(app, mocker, init_db, patch_current_time):
 
     # check first counts (this month)
     assert len(firsts_this_month.keys()) == 1
-    assert "user1" not in firsts_this_month.keys()
-    assert "user2" not in firsts_this_month.keys()
+    assert "user1" not in firsts_this_month
+    assert "user2" not in firsts_this_month
     assert firsts_this_month["user3"] == 2
 
 
@@ -816,19 +816,131 @@ def test_update_eventsub(app, init_db, mocker):
     assert updated_broadcaster.eventsub_id == new_eventsub_id
 
 
+def test_get_users_by_login(app, requests_mock):  # pylint: disable=unused-argument
+    """Test get_users_by_login returns a login->user_id mapping."""
+    users_url = f"{app.config['TWITCH_API_BASEURL']}/users"
+    requests_mock.get(users_url, json=defaults.USERS_LOOKUP_JSON)
+
+    result = twitch.get_users_by_login([defaults.TEST_USER_NAME])
+
+    assert result == {defaults.TEST_USER_NAME: defaults.TEST_USER_ID}
+
+
+def test_get_users_by_login_not_found(app, requests_mock):  # pylint: disable=unused-argument
+    """Test get_users_by_login returns empty dict when no users are found."""
+    users_url = f"{app.config['TWITCH_API_BASEURL']}/users"
+    requests_mock.get(users_url, json={"data": []})
+
+    result = twitch.get_users_by_login(["unknownuser"])
+
+    assert not result
+
+
+def test_get_users_by_login_api_error(app, mocker):  # pylint: disable=unused-argument
+    """Test get_users_by_login raises RequestException on API failure."""
+    mock_request_twitch_api_app = mocker.patch("verifiedfirst.twitch.request_twitch_api_app")
+    mock_request_twitch_api_app.side_effect = RequestException("api error")
+
+    with pytest.raises(RequestException):
+        twitch.get_users_by_login([defaults.TEST_USER_NAME])
+
+
+def test_upsert_user_insert(app, init_db):
+    """Test upsert_user creates a new User record when none exists."""
+    init_db(app)
+
+    from verifiedfirst.models.users import User  # pylint: disable=import-outside-toplevel
+
+    user = twitch.upsert_user(defaults.TEST_USER_ID, defaults.TEST_USER_NAME)
+
+    assert user.id == defaults.TEST_USER_ID
+    assert user.name == defaults.TEST_USER_NAME
+    stored = app.extensions["sqlalchemy"].session.get(User, defaults.TEST_USER_ID)
+    assert stored is not None
+    assert stored.name == defaults.TEST_USER_NAME
+
+
+def test_upsert_user_update(app, init_db):
+    """Test upsert_user updates the name of an existing User record."""
+    database = init_db(app)
+
+    from verifiedfirst.models.users import User  # pylint: disable=import-outside-toplevel
+
+    database.session.add(User(id=defaults.TEST_USER_ID, name="oldname"))
+    database.session.commit()
+
+    user = twitch.upsert_user(defaults.TEST_USER_ID, "newname")
+
+    assert user.name == "newname"
+    stored = database.session.get(User, defaults.TEST_USER_ID)
+    assert stored.name == "newname"
+
+
 def test_add_first(app, init_db, patch_current_time):
     """Test add_first function."""
     with patch_current_time("2000-01-01"):
         init_db(app)
-        first1 = twitch.add_first(defaults.BROADCASTER_ID, "testuser1")
-        first2 = twitch.add_first(defaults.BROADCASTER_ID, "testuser2")
+        first1 = twitch.add_first(defaults.BROADCASTER_ID, 1001, "testuser1")
+        first2 = twitch.add_first(defaults.BROADCASTER_ID, 1002, "testuser2")
 
         assert first1.name == "testuser1"
+        assert first1.user_id == 1001
         assert first1.broadcaster_id == defaults.BROADCASTER_ID
         assert first1.timestamp == datetime(2000, 1, 1, 0, 0, 0)
         assert first2.name == "testuser2"
+        assert first2.user_id == 1002
         assert first2.broadcaster_id == defaults.BROADCASTER_ID
         assert first2.timestamp == datetime(2000, 1, 1, 0, 0, 0)
+
+
+def test_get_firsts_with_user_ids(app, init_db):
+    """Test get_firsts aggregates by user_id and returns the current cached username."""
+    from verifiedfirst.models.users import User  # pylint: disable=import-outside-toplevel
+
+    database = init_db(app)
+
+    broadcaster = type("B", (), {"id": defaults.BROADCASTER_ID})()
+
+    database.session.add(User(id=1001, name="currentname"))
+    database.session.commit()
+
+    for _ in range(3):
+        database.session.add(
+            First(broadcaster_id=defaults.BROADCASTER_ID, name="oldname", user_id=1001)
+        )
+    database.session.commit()
+
+    firsts = twitch.get_firsts(broadcaster)
+
+    assert firsts == {"currentname": 3}
+
+
+def test_get_firsts_mixed_legacy_and_new(app, init_db):
+    """Test get_firsts handles a mix of rows with and without user_id."""
+    from verifiedfirst.models.users import User  # pylint: disable=import-outside-toplevel
+
+    database = init_db(app)
+
+    broadcaster = type("B", (), {"id": defaults.BROADCASTER_ID})()
+
+    database.session.add(User(id=1001, name="newuser"))
+    database.session.commit()
+
+    # Two new-style rows (user_id set)
+    for _ in range(2):
+        database.session.add(
+            First(broadcaster_id=defaults.BROADCASTER_ID, name="newuser", user_id=1001)
+        )
+    # One legacy row (no user_id)
+    database.session.add(
+        First(broadcaster_id=defaults.BROADCASTER_ID, name="legacyuser", user_id=None)
+    )
+    database.session.commit()
+
+    firsts = twitch.get_firsts(broadcaster)
+
+    assert firsts["newuser"] == 2
+    assert firsts["legacyuser"] == 1
 
 
 def test_update_reward(app, init_db):

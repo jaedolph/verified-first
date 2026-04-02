@@ -1,7 +1,7 @@
 """Migrate the database schema to support tracking users by Twitch user ID.
 
 Applies the following changes to an existing database:
-  - Creates the 'user' table if it does not exist
+  - Creates the 'twitch_user' table if it does not exist
   - Adds the nullable 'user_id' foreign key column to the 'first' table if it does not exist
 
 This script is idempotent and safe to run multiple times.
@@ -28,19 +28,19 @@ def migrate() -> None:
     """Apply schema migrations for user ID tracking."""
     inspector = inspect(db.engine)
 
-    if not inspector.has_table("user"):
-        logger.info("Creating 'user' table...")
+    if not inspector.has_table("twitch_user"):
+        logger.info("Creating 'twitch_user' table...")
         User.__table__.create(db.engine)
-        logger.info("'user' table created.")
+        logger.info("'twitch_user' table created.")
     else:
-        logger.info("'user' table already exists, skipping.")
+        logger.info("'twitch_user' table already exists, skipping.")
 
     existing_columns = [col["name"] for col in inspector.get_columns("first")]
     if "user_id" not in existing_columns:
         logger.info("Adding 'user_id' column to 'first' table...")
         with db.engine.connect() as conn:
             conn.execute(
-                text("ALTER TABLE first ADD COLUMN user_id INTEGER REFERENCES \"user\"(id)")
+                text("ALTER TABLE first ADD COLUMN user_id INTEGER REFERENCES twitch_user(id)")
             )
             conn.commit()
         logger.info("'user_id' column added.")
@@ -50,7 +50,7 @@ def migrate() -> None:
 
 def main() -> None:
     """Entry point."""
-    logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
+    logging.getLogger().setLevel(logging.INFO)
     with create_app().app_context():
         migrate()
 

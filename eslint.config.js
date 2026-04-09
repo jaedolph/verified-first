@@ -13,7 +13,7 @@ export default [
       "react-hooks": reactHooks,
     },
     languageOptions: {
-      globals: { ...globals.browser, ...globals.node },
+      globals: { ...globals.browser, ...globals.node, ...globals.vitest },
       parserOptions: {
         ecmaFeatures: { jsx: true },
       },

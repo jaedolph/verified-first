@@ -1,0 +1,217 @@
+/* ---------------------------------------------------------------
+   Base typography
+--------------------------------------------------------------- */
+body {
+  font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+  font-size: 13px;
+  line-height: 19.5px;
+  overflow: hidden;
+}
+
+/* ---------------------------------------------------------------
+   Theming via data-theme attribute applied to #root by the SDK
+--------------------------------------------------------------- */
+#root,
+#panel,
+#config-page {
+  color: rgb(14, 14, 16);
+}
+
+#root[data-theme="dark"] #panel,
+#root[data-theme="dark"] #config-page {
+  color: rgb(239, 239, 241);
+}
+
+/* ---------------------------------------------------------------
+   Panel layout
+--------------------------------------------------------------- */
+
+h3 {
+  font-weight: 600;
+  font-size: 24px;
+}
+
+p {
+  font-weight: 400;
+  font-size: 13px;
+  margin: 4px 0;
+}
+
+/* ---------------------------------------------------------------
+   Time-range buttons
+--------------------------------------------------------------- */
+
+.timerange button {
+  border: none;
+  background: transparent;
+  color: inherit;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 400;
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: 3px;
+}
+
+.timerange button:hover {
+  background: rgb(169, 112, 255);
+  color: rgb(14, 14, 16);
+}
+
+.timerange button.active {
+  font-weight: 700;
+}
+
+/* ---------------------------------------------------------------
+   Date picker (custom range)
+--------------------------------------------------------------- */
+#date_picker {
+  margin-bottom: 6px;
+  font-size: 12px;
+}
+
+#date_picker input[type="date"] {
+  font-size: 12px;
+  font-family: inherit;
+}
+
+/* ---------------------------------------------------------------
+   Leaderboard area
+--------------------------------------------------------------- */
+.firsts {
+  height: 370px;
+  overflow-y: scroll;
+  overflow-x: hidden;
+  margin-top: 12px;
+}
+
+blockquote {
+  border-left: 2.4px solid rgb(169, 112, 255);
+  padding-left: 10px;
+  margin: 0;
+}
+
+blockquote p {
+  margin: 0;
+}
+
+/* ---------------------------------------------------------------
+   Footer (last-updated timestamp)
+--------------------------------------------------------------- */
+.footer {
+  position: fixed;
+  bottom: 0;
+  width: 100%;
+  margin-left: -8px;
+  padding: 2px 8px;
+  font-size: 11px;
+  background: inherit;
+}
+
+.footer p {
+  font-size: 11px;
+  margin: 0;
+  opacity: 0.7;
+}
+
+/* ---------------------------------------------------------------
+   Config page layout
+--------------------------------------------------------------- */
+#config-page {
+  padding: 8px 12px 24px;
+  max-width: 600px;
+}
+
+#config-page h2 {
+  font-size: 16px;
+  font-weight: 600;
+  margin: 16px 0 6px;
+}
+
+#config-page h3 {
+  font-size: 13px;
+  font-weight: 400;
+  margin: 0 0 4px;
+}
+
+#config-page section {
+  margin-bottom: 8px;
+}
+
+/* ---------------------------------------------------------------
+   Config form controls
+--------------------------------------------------------------- */
+.form-group {
+  margin-bottom: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+label {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+input[type="text"],
+select {
+  font-family: inherit;
+  font-size: 13px;
+  padding: 4px 6px;
+  border: 1px solid rgb(169, 112, 255);
+  border-radius: 4px;
+  background: transparent;
+  color: inherit;
+  max-width: 300px;
+}
+
+input[type="submit"],
+button#oauth {
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 6px 14px;
+  border: none;
+  border-radius: 4px;
+  background: rgb(169, 112, 255);
+  color: rgb(14, 14, 16);
+}
+
+input[type="submit"]:disabled,
+button#oauth:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+input[type="submit"]:hover:not(:disabled),
+button#oauth:hover:not(:disabled) {
+  background: rgb(145, 71, 255);
+}
+
+/* ---------------------------------------------------------------
+   Status messages
+--------------------------------------------------------------- */
+.status {
+  font-size: 12px;
+  margin: 6px 0 0;
+}
+
+.status.success {
+  color: rgb(0, 173, 101);
+}
+
+.status.error {
+  color: rgb(235, 66, 66);
+}
+
+/* ---------------------------------------------------------------
+   Links
+--------------------------------------------------------------- */
+a {
+  color: rgb(169, 112, 255);
+}
+
+a:visited {
+  color: rgb(169, 112, 255);
+}

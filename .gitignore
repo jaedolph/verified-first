@@ -9,7 +9,8 @@ ebs/venv
 htmlcov
 __pycache__/
 build/
-package-lock.json
+dist/
 yarn.lock
 *.zip
 .vscode
+*.backup

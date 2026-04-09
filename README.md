@@ -3,7 +3,7 @@ Twitch extension to track who gets to your stream first.
 
 ## Development
 
-### Lint the frontend
+### Frontend
 
 Install dependencies (one-time setup):
 
@@ -11,10 +11,30 @@ Install dependencies (one-time setup):
 npm install
 ```
 
-Run ESLint:
+Build for production (output goes to `dist/`):
 
 ```bash
-npx eslint *.js
+npm run build
+```
+
+Build and package into a zip ready for upload to Twitch:
+
+```bash
+npm run zip
+```
+
+This produces `verified-first.zip` in the project root.
+
+Start the Vite dev server (hot-reloading at `http://localhost:5173`):
+
+```bash
+npm run dev
+```
+
+Preview the production build locally:
+
+```bash
+npm run preview
 ```
 
 ### Run tox tests for EBS
@@ -68,5 +88,7 @@ gunicorn --bind 0.0.0.0:5000 "verifiedfirst:create_app()"
 In a separate terminal, from the project root:
 
 ```bash
-npx http-server . -p 8000
+npm run dev
 ```
+
+This starts the Vite dev server at `http://localhost:5173`. Open `http://localhost:5173/panel.html` or `http://localhost:5173/config.html` to test each view.

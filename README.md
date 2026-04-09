@@ -37,6 +37,18 @@ Preview the production build locally:
 npm run preview
 ```
 
+Run the frontend unit tests:
+
+```bash
+npm test
+```
+
+Run tests in watch mode (re-runs on file changes):
+
+```bash
+npm run test:watch
+```
+
 ### Run tox tests for EBS
 
 ```

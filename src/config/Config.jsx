@@ -111,9 +111,9 @@ export default function Config() {
     e.preventDefault();
 
     const form = e.target;
-    const title = form.panel_title.value;
-    const timeRange = form.time_range.value;
-    const rewardId = form.reward_select.value;
+    const title = form.elements["panel_title"].value;
+    const timeRange = form.elements["time_range"].value;
+    const rewardId = form.elements["reward_select"].value;
 
     if (!rewardId) {
       setSubmitStatus("error");

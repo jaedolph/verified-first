@@ -25,7 +25,7 @@ greenlet==3.4.0
     # via sqlalchemy
 gunicorn==25.3.0
     # via verifiedfirst (pyproject.toml)
-idna==3.11
+idna==3.12
     # via requests
 itsdangerous==2.2.0
     # via flask

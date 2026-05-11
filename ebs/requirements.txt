@@ -50,7 +50,7 @@ sqlalchemy==2.0.49
     # via flask-sqlalchemy
 typing-extensions==4.15.0
     # via sqlalchemy
-urllib3==2.6.3
+urllib3==2.7.0
     # via requests
 werkzeug==3.1.8
     # via

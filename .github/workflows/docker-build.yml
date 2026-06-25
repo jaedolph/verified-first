@@ -55,15 +55,10 @@ jobs:
 
   deploy_test:
     name: Deploy latest image to verifiedfirst-test
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, verifiedfirst-test]
     needs: push_to_registry
     steps:
       - name: Pull and restart verifiedfirst-test
-        uses: appleboy/ssh-action@v1
-        with:
-          host: ${{ secrets.DEPLOY_SSH_HOST }}
-          username: podman
-          key: ${{ secrets.DEPLOY_SSH_KEY }}
-          script: |
-            podman pull docker.io/jaedolph/verifiedfirst:latest
-            XDG_RUNTIME_DIR=/run/user/2001 systemctl --user restart container-verifiedfirst-test.service
+        run: |
+          podman pull docker.io/jaedolph/verifiedfirst:latest
+          XDG_RUNTIME_DIR=/run/user/2001 systemctl --user restart container-verifiedfirst-test.service

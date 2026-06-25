@@ -42,7 +42,7 @@ psycopg2-binary==2.9.12
     # via verifiedfirst (pyproject.toml)
 pycparser==3.0
     # via cffi
-pyjwt==2.12.1
+pyjwt==2.13.0
     # via verifiedfirst (pyproject.toml)
 requests==2.33.1
     # via verifiedfirst (pyproject.toml)

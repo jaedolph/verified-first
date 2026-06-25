@@ -3,6 +3,12 @@ name: Create zip of frontend files
 on:
   release:
     types: [published]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release tag to build (e.g. v0.4.0)'
+        required: true
+        type: string
 
 permissions:
   contents: write
@@ -18,9 +24,15 @@ jobs:
           cache: npm
       - name: Install dependencies
         run: npm ci
-      - name: Build and package frontend
-        run: npm run zip
-      - uses: actions/upload-artifact@v7
-        with:
-          name: verifiedfirst-frontend
-          path: "*.zip"
+      - name: Build frontend
+        run: npm run build
+      - name: Package frontend
+        run: |
+          VERSION="${{ inputs.version || github.ref_name }}"
+          cd dist && zip -r "../verified-first-${VERSION}.zip" .
+      - name: Attach zip to release
+        run: |
+          VERSION="${{ inputs.version || github.ref_name }}"
+          gh release upload "${VERSION}" "verified-first-${VERSION}.zip"
+        env:
+          GH_TOKEN: ${{ github.token }}

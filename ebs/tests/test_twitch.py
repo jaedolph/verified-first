@@ -184,7 +184,9 @@ def test_request_twitch_api_broadcaster_refresh(
     mock_error_response.status_code = 401
     mock_good_response = mocker.Mock()
 
-    mock_error_response.raise_for_status.side_effect = RequestException("test exception")
+    test_exception = RequestException("test exception")
+    test_exception.response = mock_error_response
+    mock_error_response.raise_for_status.side_effect = test_exception
 
     mock_request_twitch_api = mocker.patch("verifiedfirst.twitch.request_twitch_api")
     mock_request_twitch_api.side_effect = [
@@ -233,7 +235,9 @@ def test_request_twitch_api_broadcaster_refresh_fail(
     mock_error_response = mocker.Mock()
     mock_error_response.status_code = 401
 
-    mock_error_response.raise_for_status.side_effect = RequestException("test exception")
+    test_exception = RequestException("test exception")
+    test_exception.response = mock_error_response
+    mock_error_response.raise_for_status.side_effect = test_exception
 
     mock_request_twitch_api = mocker.patch("verifiedfirst.twitch.request_twitch_api")
     mock_request_twitch_api.return_value = mock_error_response
@@ -308,7 +312,9 @@ def test_request_twitch_api_app_refresh(app, mocker, caplog):
     mock_error_response = mocker.Mock()
     mock_error_response.status_code = 401
     mock_good_response = mocker.Mock()
-    mock_error_response.raise_for_status.side_effect = RequestException("test exception")
+    test_exception = RequestException("test exception")
+    test_exception.response = mock_error_response
+    mock_error_response.raise_for_status.side_effect = test_exception
 
     mock_request_twitch_api = mocker.patch("verifiedfirst.twitch.request_twitch_api")
     mock_request_twitch_api.side_effect = [
@@ -345,7 +351,9 @@ def test_request_twitch_api_app_refresh_fail(app, mocker, caplog):
     mock_error_response = mocker.Mock()
     mock_error_response.status_code = 401
     mock_good_response = mocker.Mock()
-    mock_error_response.raise_for_status.side_effect = RequestException("test exception")
+    test_exception = RequestException("test exception")
+    test_exception.response = mock_error_response
+    mock_error_response.raise_for_status.side_effect = test_exception
 
     mock_request_twitch_api = mocker.patch("verifiedfirst.twitch.request_twitch_api")
     mock_request_twitch_api.side_effect = [

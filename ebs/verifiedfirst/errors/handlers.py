@@ -1,4 +1,5 @@
 """Error handlers."""
+
 from typing import cast
 
 from flask import Blueprint, Response, jsonify

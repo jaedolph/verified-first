@@ -1,4 +1,5 @@
 """Configuration for the app."""
+
 import os
 from typing import cast
 

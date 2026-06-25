@@ -1,4 +1,5 @@
 """Tests for functions that interact with the Twitch API."""
+
 from datetime import datetime
 from urllib.parse import quote
 
@@ -153,7 +154,6 @@ def test_request_twitch_api_broadcaster(app, caplog, mocker):  # pylint: disable
 def test_request_twitch_api_broadcaster_404(app, caplog, mocker):  # pylint: disable=unused-argument
     """Test request_twitch_api_broadcaster throws the correct exception if the twitch API returns an
     error (other than unauthorized)"""
-
     mock_request = mocker.Mock()
     mock_response = mocker.Mock()
     mock_response.status_code = 404
@@ -179,7 +179,6 @@ def test_request_twitch_api_broadcaster_refresh(
 ):  # pylint: disable=too-many-locals,unused-argument
     """Test request_twitch_api_broadcaster refreshes the access token if the first request gets a
     401 error."""
-
     mock_request = mocker.Mock()
     mock_error_response = mocker.Mock()
     mock_error_response.status_code = 401
@@ -230,7 +229,6 @@ def test_request_twitch_api_broadcaster_refresh_fail(
 ):  # pylint: disable=unused-argument
     """Test request_twitch_api_broadcaster throws the correct exception if the token refresh
     fails."""
-
     mock_request = mocker.Mock()
     mock_error_response = mocker.Mock()
     mock_error_response.status_code = 401
@@ -285,7 +283,6 @@ def test_request_twitch_api_app(app, mocker, caplog):
 def test_request_twitch_api_app_404(app, mocker, caplog):
     """Test request_twitch_api_app function throws an exception if the twitch API returns an error
     (other than unauthorized)"""
-
     mock_request = mocker.Mock()
     mock_response = mocker.Mock()
     mock_response.status_code = 404
@@ -307,7 +304,6 @@ def test_request_twitch_api_app_404(app, mocker, caplog):
 def test_request_twitch_api_app_refresh(app, mocker, caplog):
     """Test request_twitch_api_app function refreshes the token if the first request gets a 401
     error."""
-
     mock_request = mocker.Mock()
     mock_error_response = mocker.Mock()
     mock_error_response.status_code = 401
@@ -345,7 +341,6 @@ def test_request_twitch_api_app_refresh(app, mocker, caplog):
 
 def test_request_twitch_api_app_refresh_fail(app, mocker, caplog):
     """Test request_twitch_api_app function throws the correct error if the token refresh fails."""
-
     mock_request = mocker.Mock()
     mock_error_response = mocker.Mock()
     mock_error_response.status_code = 401
@@ -499,7 +494,6 @@ def test_get_rewards(app, mocker):
 
 def test_get_rewards_403(app, mocker):  # pylint: disable=unused-argument
     """Test get_rewards throws the correct exception if the twitch API returns an error."""
-
     mock_request_twitch_api = mocker.patch("verifiedfirst.twitch.request_twitch_api_broadcaster")
     mock_request_twitch_api.side_effect = RequestException("test exception")
     mock_broadcaster = mocker.Mock()
@@ -512,7 +506,6 @@ def test_get_rewards_403(app, mocker):  # pylint: disable=unused-argument
 
 def test_get_firsts(app, mocker, init_db):
     """Test get_firsts function."""
-
     database = init_db(app)
 
     broadcaster = mocker.Mock()
@@ -542,7 +535,6 @@ def test_get_firsts(app, mocker, init_db):
 
 def test_get_firsts_date_ranges(app, mocker, init_db, patch_current_time):
     """Test get_firsts function."""
-
     database = init_db(app)
 
     broadcaster = mocker.Mock()
@@ -595,9 +587,7 @@ def test_get_firsts_date_ranges(app, mocker, init_db, patch_current_time):
 
 def test_get_firsts_not_found(app, mocker, init_db):
     """Test get_firsts returns an empty dictionary if no firsts exist."""
-
     init_db(app)
-
     broadcaster = mocker.Mock()
     broadcaster.id = defaults.BROADCASTER_ID
 
@@ -609,7 +599,6 @@ def test_get_firsts_not_found(app, mocker, init_db):
 
 def test_create_eventsub(app, mocker):
     """Test create_eventsub function."""
-
     mock_response = mocker.Mock()
     mock_response.json.return_value = defaults.EVENTSUB_JSON
     mock_request_twitch_api = mocker.patch("verifiedfirst.twitch.request_twitch_api_app")
@@ -643,7 +632,6 @@ def test_create_eventsub(app, mocker):
 
 def test_create_eventsub_403(app, mocker):  # pylint: disable=unused-argument
     """Test create_eventsub throws the correct exception if the twitch API returns an error."""
-
     mock_request_twitch_api = mocker.patch("verifiedfirst.twitch.request_twitch_api_app")
     mock_request_twitch_api.side_effect = RequestException("test exception")
     mock_broadcaster = mocker.Mock()
@@ -656,7 +644,6 @@ def test_create_eventsub_403(app, mocker):  # pylint: disable=unused-argument
 
 def test_get_eventsubs(app, mocker):
     """Test get_eventsubs function."""
-
     mock_response = mocker.Mock()
     mock_response.json.return_value = defaults.EVENTSUB_JSON
     mock_request_twitch_api = mocker.patch("verifiedfirst.twitch.request_twitch_api_app")
@@ -677,7 +664,6 @@ def test_get_eventsubs(app, mocker):
 
 def test_get_eventsubs_bad_format(app, mocker):  # pylint: disable=unused-argument
     """Test get_eventsubs throws correct exception when data is in wrong format."""
-
     mock_response = mocker.Mock()
     mock_request_twitch_api = mocker.patch("verifiedfirst.twitch.request_twitch_api_app")
     mock_request_twitch_api.return_value = mock_response
@@ -702,7 +688,6 @@ def test_get_eventsubs_bad_format(app, mocker):  # pylint: disable=unused-argume
 
 def test_get_eventsub_fail(app, mocker):  # pylint: disable=unused-argument
     """Test get_eventsub throws the correct exception if the twitch API returns an error."""
-
     mock_request_twitch_api = mocker.patch("verifiedfirst.twitch.request_twitch_api_app")
     mock_request_twitch_api.side_effect = RequestException("test exception")
     mock_broadcaster = mocker.Mock()
@@ -715,7 +700,6 @@ def test_get_eventsub_fail(app, mocker):  # pylint: disable=unused-argument
 
 def test_delete_eventsub(app, mocker):  # pylint: disable=unused-argument
     """Test delete_eventsub function."""
-
     mock_response = mocker.Mock()
     mock_response.text = "test"
     mock_request_twitch_api = mocker.patch("verifiedfirst.twitch.request_twitch_api_app")
@@ -726,7 +710,6 @@ def test_delete_eventsub(app, mocker):  # pylint: disable=unused-argument
 
 def test_update_eventsub(app, init_db, mocker):
     """Test new eventsub gets created if it doesn't exist."""
-
     database = init_db(app)
 
     mock_get_eventsubs = mocker.patch("verifiedfirst.twitch.get_eventsubs")
@@ -848,7 +831,6 @@ def test_get_users_by_login_api_error(app, mocker):  # pylint: disable=unused-ar
 def test_upsert_user_insert(app, init_db):
     """Test upsert_user creates a new User record when none exists."""
     init_db(app)
-
     from verifiedfirst.models.users import User  # pylint: disable=import-outside-toplevel
 
     user = twitch.upsert_user(defaults.TEST_USER_ID, defaults.TEST_USER_NAME)
@@ -863,7 +845,6 @@ def test_upsert_user_insert(app, init_db):
 def test_upsert_user_update(app, init_db):
     """Test upsert_user updates the name of an existing User record."""
     database = init_db(app)
-
     from verifiedfirst.models.users import User  # pylint: disable=import-outside-toplevel
 
     database.session.add(User(id=defaults.TEST_USER_ID, name="oldname"))
@@ -945,7 +926,6 @@ def test_get_firsts_mixed_legacy_and_new(app, init_db):
 
 def test_update_reward(app, init_db):
     """Test update_reward function."""
-
     database = init_db(app)
 
     broadcaster = Broadcaster(
@@ -967,7 +947,6 @@ def test_update_reward(app, init_db):
 
 def test_get_broadcaster(app, init_db):
     """Test get_broadcaster function."""
-
     database = init_db(app)
 
     expected_broadcaster = Broadcaster(
@@ -986,7 +965,6 @@ def test_get_broadcaster(app, init_db):
 
 def test_get_broadcaster_not_found(app, init_db):
     """Test get_broadcaster returns None if no matching broadcaster is found."""
-
     init_db(app)
 
     broadcaster = twitch.get_broadcaster(defaults.BROADCASTER_ID)

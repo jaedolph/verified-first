@@ -1,4 +1,5 @@
 """Auth routes."""
+
 from flask import (
     Blueprint,
     Response,
@@ -18,8 +19,9 @@ bp = Blueprint("auth", __name__)
 
 @bp.route("/auth", methods=["GET"])
 def auth() -> Response:
-    """Endpoint to redirect twitch oauth requests to. Ensures that api auth tokens are stored in the
-    database under the appropriate broadcaster.
+    """Endpoint to redirect twitch oauth requests to.
+
+    Ensures that api auth tokens are stored in the database under the appropriate broadcaster.
 
     :return: javascript that sends a message to the parent window (AUTH_SUCCESSFUL or AUTH_FAILED)
     """
@@ -44,7 +46,6 @@ def auth() -> Response:
 @verify.token_required
 def auth_check(channel_id: int, role: str) -> Response:
     """Checks if the broadcaster auth is valid."""
-
     # pylint: disable=duplicate-code
     if role != "broadcaster":
         abort(403, "user role is not broadcaster")

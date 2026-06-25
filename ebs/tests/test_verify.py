@@ -1,4 +1,5 @@
 """test_verify.py."""
+
 import base64
 import time
 
@@ -12,7 +13,6 @@ from . import defaults
 
 def test_get_hmac(app, mocker):  # pylint: disable=unused-argument
     """Test the get_hmac function generates a correct hmac."""
-
     message = (defaults.MESSAGE_ID + defaults.MESSAGE_TIMESTAMP + defaults.MESSAGE_DATA).encode(
         "utf-8"
     )
@@ -22,7 +22,6 @@ def test_get_hmac(app, mocker):  # pylint: disable=unused-argument
 
 def test_verify_eventsub_message(app, mocker):  # pylint: disable=unused-argument
     """Test the verify_eventsub_message function."""
-
     mock_request = mocker.Mock()
     mock_get_hmac = mocker.patch("verifiedfirst.verify.get_hmac")
 
@@ -55,7 +54,6 @@ def test_verify_eventsub_message(app, mocker):  # pylint: disable=unused-argumen
 
 def test_verify_jwt(app, mocker, generate_jwt):  # pylint: disable=unused-argument
     """Test the verify_jwt function."""
-
     mock_request = mocker.Mock()
 
     # test the valid jwt decodes correctly
@@ -115,7 +113,6 @@ def function(channel_id, role):
 
 def test_token_required(app, mocker):  # pylint: disable=unused-argument
     """Test the token_required decorator."""
-
     mock_verify_jwt = mocker.patch("verifiedfirst.verify.verify_jwt")
     mock_verify_jwt.return_value = (defaults.CHANNEL_ID, defaults.ROLE)
 

@@ -1,4 +1,5 @@
 """Functions related to the twitch api."""
+
 from collections import defaultdict
 from typing import Any, List, Tuple
 from datetime import datetime
@@ -137,15 +138,16 @@ def request_twitch_api(access_token: str, request: Request) -> Response:
 
 
 def request_twitch_api_broadcaster(broadcaster: Broadcaster, request: Request) -> Response:
-    """Request the twitch api with a user (broadcaster) token. If the request fails due to the auth
-    token being expired, the token is attempted to be refreshed and the request is retried.
+    """Request the twitch api with a user (broadcaster) token.
+
+    If the request fails due to the auth token being expired, the token is attempted to be refreshed
+    and the request is retried.
 
     :param broadcaster: broadcaster to perform the request for
     :param request: request to send to the twitch api
     :raises RequestException: if the request fails
     :return: response from the request
     """
-
     try:
         resp = request_twitch_api(broadcaster.access_token, request)
         resp.raise_for_status()
@@ -296,7 +298,6 @@ def get_firsts(
     :param end_time: count firsts at or before this date
     :return: dictionary of first counts by user e.g {"user1": 5, "user2": 3}
     """
-
     if start_time is None:
         start_time = datetime.min
     if end_time is None:
@@ -568,7 +569,6 @@ def get_broadcaster(broadcaster_id: int) -> Broadcaster | None:
     :param broadcaster_id: id of the broadcaster to retrieve
     :return: matching broadcaster object or None
     """
-
     try:
         broadcaster = Broadcaster.query.filter(Broadcaster.id == broadcaster_id).one()
     except NoResultFound:

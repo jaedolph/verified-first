@@ -1,4 +1,5 @@
 """Initialize the app."""
+
 import logging
 import sys
 from typing import TypeVar
@@ -67,7 +68,6 @@ def validate_config(config_class: type[C]) -> None:
     :param config_class: imported config class to validate
     :raises ValueError: if config is invalid
     """
-
     if not config_class.CLIENT_ID:
         raise ValueError(f"Missing env var {config_class.PREFIX}CLIENT_ID")
 

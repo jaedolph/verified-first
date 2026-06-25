@@ -1,4 +1,5 @@
 """Main entrypoint."""
+
 from verifiedfirst import create_app
 
 

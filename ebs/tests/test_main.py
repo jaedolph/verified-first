@@ -1,4 +1,5 @@
 """Tests for main routes."""
+
 from datetime import datetime
 
 from flask import url_for
@@ -9,7 +10,6 @@ from . import defaults
 
 def test_firsts(client, mocker):
     """Test the /firsts endpoint works."""
-
     firsts = {
         "user1": 5,
         "user2": 3,
@@ -60,7 +60,6 @@ def test_firsts(client, mocker):
 
 def test_firsts_no_broadcaster(client, mocker):
     """Test the /firsts returns a 403 if the broadcaster is not authed."""
-
     mock_jwt = mocker.patch("verifiedfirst.verify.verify_jwt")
     mock_jwt.return_value = (defaults.CHANNEL_ID, "viewer")
     mock_get_broadcaster = mocker.patch("verifiedfirst.twitch.get_broadcaster")
@@ -77,7 +76,6 @@ def test_firsts_no_broadcaster(client, mocker):
 
 def test_firsts_no_firsts(client, mocker):
     """Test the /firsts returns a 404 if no firsts are returned."""
-
     mock_jwt = mocker.patch("verifiedfirst.verify.verify_jwt")
     mock_jwt.return_value = (defaults.CHANNEL_ID, "viewer")
     mock_get_broadcaster = mocker.patch("verifiedfirst.twitch.get_broadcaster")
@@ -96,7 +94,6 @@ def test_firsts_no_firsts(client, mocker):
 
 def test_eventsub_create(client, mocker):
     """Test the /eventsub/create endpoint works."""
-
     mock_jwt = mocker.patch("verifiedfirst.verify.verify_jwt")
     mock_jwt.return_value = (defaults.CHANNEL_ID, "broadcaster")
     mock_broadcaster = mocker.Mock()
@@ -120,7 +117,6 @@ def test_eventsub_create(client, mocker):
 
 def test_eventsub_create_not_broadcaster(client, mocker):
     """Test that only broadcasters can use the /eventsub/create endpoint."""
-
     mock_jwt = mocker.patch("verifiedfirst.verify.verify_jwt")
 
     mock_jwt.return_value = (defaults.CHANNEL_ID, "viewer")
@@ -134,7 +130,6 @@ def test_eventsub_create_not_broadcaster(client, mocker):
 
 def test_eventsub_create_undefined(client, mocker):
     """Test that an 'undefined' reward id is rejected."""
-
     mock_jwt = mocker.patch("verifiedfirst.verify.verify_jwt")
     reward_id = "undefined"
 
@@ -147,7 +142,6 @@ def test_eventsub_create_undefined(client, mocker):
 
 def test_eventsub_create_unauthed(client, mocker):
     """Test that a 403 is returned if the broadcaster has not authed yet."""
-
     mock_jwt = mocker.patch("verifiedfirst.verify.verify_jwt")
     mock_jwt.return_value = (defaults.CHANNEL_ID, "broadcaster")
     mock_get_broadcaster = mocker.patch("verifiedfirst.twitch.get_broadcaster")
@@ -164,7 +158,6 @@ def test_eventsub_create_unauthed(client, mocker):
 
 def test_rewards(client, mocker):
     """Test the /rewards endpoint works."""
-
     mock_jwt = mocker.patch("verifiedfirst.verify.verify_jwt")
     mock_jwt.return_value = (defaults.CHANNEL_ID, "broadcaster")
     mock_broadcaster = mocker.Mock()
@@ -182,7 +175,6 @@ def test_rewards(client, mocker):
 
 def test_rewards_not_broadcaster(client, mocker):
     """Test that only broadcasters can get rewards."""
-
     mock_jwt = mocker.patch("verifiedfirst.verify.verify_jwt")
     mock_jwt.return_value = (defaults.CHANNEL_ID, "viewer")
 
@@ -194,7 +186,6 @@ def test_rewards_not_broadcaster(client, mocker):
 
 def test_rewards_unauthed(client, mocker):
     """Test that a 403 is returned if the broadcaster has not authed yet."""
-
     mock_jwt = mocker.patch("verifiedfirst.verify.verify_jwt")
     mock_jwt.return_value = (defaults.CHANNEL_ID, "broadcaster")
     mock_get_broadcaster = mocker.patch("verifiedfirst.twitch.get_broadcaster")
@@ -208,7 +199,6 @@ def test_rewards_unauthed(client, mocker):
 
 def test_rewards_no_rewards(client, mocker):
     """Test that 500 error if getting rewards fails."""
-
     mock_jwt = mocker.patch("verifiedfirst.verify.verify_jwt")
     mock_jwt.return_value = (defaults.CHANNEL_ID, "broadcaster")
     mock_broadcaster = mocker.Mock()
@@ -225,7 +215,6 @@ def test_rewards_no_rewards(client, mocker):
 
 def test_eventsub_challenge(client, mocker):
     """Test the /eventsub endpoint responds to a challenge request."""
-
     mock_verify_eventsub_message = mocker.patch("verifiedfirst.verify.verify_eventsub_message")
     mock_verify_eventsub_message.return_value = True
     mock_add_first = mocker.patch("verifiedfirst.twitch.add_first")
@@ -245,7 +234,6 @@ def test_eventsub_challenge(client, mocker):
 
 def test_eventsub_notification(client, mocker):
     """Test an eventsub notification adds a "first" for the correct broadcaster."""
-
     mock_verify_eventsub_message = mocker.patch("verifiedfirst.verify.verify_eventsub_message")
     mock_verify_eventsub_message.return_value = True
     mock_add_first = mocker.patch("verifiedfirst.twitch.add_first")
@@ -275,7 +263,6 @@ def test_eventsub_notification(client, mocker):
 
 def test_eventsub_revocation(client, mocker):
     """Test an eventsub revocation deletes the eventsub for that broadcaster."""
-
     mock_verify_eventsub_message = mocker.patch("verifiedfirst.verify.verify_eventsub_message")
     mock_verify_eventsub_message.return_value = True
     mock_add_first = mocker.patch("verifiedfirst.twitch.add_first")
@@ -298,7 +285,6 @@ def test_eventsub_revocation(client, mocker):
 
 def test_eventsub_bad_message_type(client, mocker):
     """Test that an unhandled message type throws an error."""
-
     mock_verify_eventsub_message = mocker.patch("verifiedfirst.verify.verify_eventsub_message")
     mock_verify_eventsub_message.return_value = True
 
@@ -317,7 +303,6 @@ def test_eventsub_bad_message_type(client, mocker):
 
 def test_eventsub_bad_hmac(client, mocker):
     """Test the /eventsub endpoint fails if hmac doesn't verify."""
-
     mock_verify_eventsub_message = mocker.patch("verifiedfirst.verify.verify_eventsub_message")
     mock_verify_eventsub_message.return_value = False
 

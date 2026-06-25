@@ -1,4 +1,5 @@
 """Main routes."""
+
 from datetime import datetime
 
 from flask import Blueprint, Response, abort, jsonify, make_response, request, current_app
@@ -83,7 +84,6 @@ def rewards(channel_id: int, role: str) -> Response:
     :param role: role of the user making the request
     :return: list of rewards in json format
     """
-
     if role != "broadcaster":
         abort(403, "user role is not broadcaster")
 

@@ -1,4 +1,5 @@
 """Functions related to verification of auth tokens."""
+
 from functools import wraps
 from typing import Callable, TypeVar, Tuple, cast
 import base64

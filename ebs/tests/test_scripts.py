@@ -24,7 +24,6 @@ USERS = {
 
 def test_init_db(integrationtestconfig):
     """Test that the database can be loaded using the init_db.py script."""
-
     # run the init_db console script
     initdb = subprocess.run(
         [sys.executable, "verifiedfirst/init_db.py"],
@@ -61,7 +60,6 @@ def test_init_db(integrationtestconfig):
 
 def test_main(integrationtestconfig, generate_jwt):  # pylint: disable=unused-argument
     """Test that the verifiedfirst web server can be run using the __main__.py script."""
-
     # # run the verifiedfirst web server
     with subprocess.Popen(
         [sys.executable, "verifiedfirst/__main__.py"], stdin=subprocess.PIPE, stderr=subprocess.PIPE

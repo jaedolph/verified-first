@@ -8,7 +8,6 @@ from . import defaults
 
 def test_auth(app, client, mocker):  # pylint: disable=unused-argument
     """Test /auth endpoint works correctly."""
-
     good_response = render_template("auth.html", auth_msg="AUTH_SUCCESSFUL")
     mock_get_auth_tokens = mocker.patch("verifiedfirst.twitch.get_auth_tokens")
     mock_get_auth_tokens.return_value = (defaults.AUTH_ACCESS_TOKEN, defaults.AUTH_REFRESH_TOKEN)
@@ -34,7 +33,6 @@ def test_auth(app, client, mocker):  # pylint: disable=unused-argument
 
 def test_auth_rejected(app, client):  # pylint: disable=unused-argument
     """Test /auth returns an error if the user rejected the prompt."""
-
     bad_response = render_template("auth.html", auth_msg="AUTH_FAILED")
 
     resp = client.get(
@@ -51,7 +49,6 @@ def test_auth_rejected(app, client):  # pylint: disable=unused-argument
 
 def test_auth_error(app, client, mocker):  # pylint: disable=unused-argument
     """Test /auth returns an error if request to the oauth api fails."""
-
     bad_response = render_template("auth.html", auth_msg="AUTH_FAILED")
     mock_get_auth_tokens = mocker.patch("verifiedfirst.twitch.get_auth_tokens")
     mock_get_auth_tokens.side_effect = HTTPError
@@ -71,7 +68,6 @@ def test_auth_error(app, client, mocker):  # pylint: disable=unused-argument
 
 def test_auth_check(app, client, mocker):  # pylint: disable=unused-argument
     """Test /auth/check endpoint works correctly."""
-
     mock_jwt = mocker.patch("verifiedfirst.verify.verify_jwt")
     mock_jwt.return_value = (defaults.CHANNEL_ID, "broadcaster")
 
@@ -92,7 +88,6 @@ def test_auth_check(app, client, mocker):  # pylint: disable=unused-argument
 
 def test_auth_check_not_broadcaster(app, client, mocker):  # pylint: disable=unused-argument
     """Test /auth/check fails if the user accessing it is not a broadcaster."""
-
     mock_jwt = mocker.patch("verifiedfirst.verify.verify_jwt")
     mock_jwt.return_value = (defaults.CHANNEL_ID, "viewer")
     mock_get_broadcaster = mocker.patch("verifiedfirst.twitch.get_broadcaster")
@@ -109,7 +104,6 @@ def test_auth_check_not_broadcaster(app, client, mocker):  # pylint: disable=unu
 
 def test_auth_check_broadcaster_not_found(app, client, mocker):  # pylint: disable=unused-argument
     """Test /auth/check fails if the broadcaster is not in the database."""
-
     mock_jwt = mocker.patch("verifiedfirst.verify.verify_jwt")
     mock_jwt.return_value = (defaults.CHANNEL_ID, "broadcaster")
     mock_get_broadcaster = mocker.patch("verifiedfirst.twitch.get_broadcaster")
@@ -128,7 +122,6 @@ def test_auth_check_broadcaster_not_found(app, client, mocker):  # pylint: disab
 
 def test_auth_check_auth_invalid(app, client, mocker):  # pylint: disable=unused-argument
     """Test /auth/check fails if the auth token in the database is invalid/stale."""
-
     mock_jwt = mocker.patch("verifiedfirst.verify.verify_jwt")
     mock_jwt.return_value = (defaults.CHANNEL_ID, "broadcaster")
 

@@ -154,7 +154,7 @@ def request_twitch_api_broadcaster(broadcaster: Broadcaster, request: Request) -
         return resp
     except RequestException as exp:
         current_app.logger.error("request to twitch api failed: %s", exp)
-        if resp.status_code != codes.unauthorized:
+        if exp.response is None or exp.response.status_code != codes.unauthorized:
             raise exp
 
     # if we get an unauthorized response, try to refresh the token
@@ -187,7 +187,7 @@ def request_twitch_api_app(request: Request) -> Response:
         return resp
     except RequestException as exp:
         current_app.logger.error("request to twitch api failed: %s", exp)
-        if resp.status_code != codes.unauthorized:
+        if exp.response is None or exp.response.status_code != codes.unauthorized:
             raise exp
 
     # if we get an unauthorized response, try to refresh the token

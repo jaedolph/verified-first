@@ -2,7 +2,6 @@
 import csv
 from datetime import datetime
 
-import requests
 from flask import current_app
 from requests import Request
 
@@ -24,16 +23,6 @@ def check_user(broadcaster, display_name):
         },
     )
 
-    resp = requests.get(
-        "https://api.twitch.tv/helix/users",
-        params={
-            "login": username,
-        },
-        timeout=5,
-        headers={
-            "Client-Id": current_app.config["CLIENT_ID"],
-        },
-    )
     resp = twitch.request_twitch_api_broadcaster(broadcaster, req)
     resp.raise_for_status()
     try:

@@ -128,6 +128,17 @@ def test_eventsub_create_not_broadcaster(client, mocker):
     assert resp.json["error"] == "user role is not broadcaster"
 
 
+def test_eventsub_create_missing_reward_id(client, mocker):
+    """Test that a missing reward_id query param returns 400."""
+    mock_jwt = mocker.patch("verifiedfirst.verify.verify_jwt")
+    mock_jwt.return_value = (defaults.CHANNEL_ID, "broadcaster")
+
+    resp = client.post(url_for("main.eventsub_create"))
+
+    assert resp.status_code == 400
+    assert resp.json["error"] == "reward_id is required"
+
+
 def test_eventsub_create_undefined(client, mocker):
     """Test that an 'undefined' reward id is rejected."""
     mock_jwt = mocker.patch("verifiedfirst.verify.verify_jwt")

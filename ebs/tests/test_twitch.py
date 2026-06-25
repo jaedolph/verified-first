@@ -931,9 +931,7 @@ def test_get_firsts_missing_user(app, init_db):
     broadcaster = type("B", (), {"id": defaults.BROADCASTER_ID})()
 
     # Add a First with a user_id that has no matching User row (data inconsistency)
-    database.session.add(
-        First(broadcaster_id=defaults.BROADCASTER_ID, name="ghost", user_id=9999)
-    )
+    database.session.add(First(broadcaster_id=defaults.BROADCASTER_ID, name="ghost", user_id=9999))
     database.session.commit()
 
     with pytest.raises(ValueError):

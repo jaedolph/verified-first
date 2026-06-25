@@ -16,6 +16,6 @@ COPY . .
 
 RUN ["pip3", "install", "--no-cache-dir", "-r", "requirements.txt", "."]
 
-USER ${CONTAINER_DEFAULT_USER}
+USER 1001
 
 CMD ["gunicorn", "verifiedfirst:create_app()"]

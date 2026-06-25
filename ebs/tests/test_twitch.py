@@ -924,6 +924,22 @@ def test_get_firsts_mixed_legacy_and_new(app, init_db):
     assert firsts["legacyuser"] == 1
 
 
+def test_get_firsts_missing_user(app, init_db):
+    """Test get_firsts raises ValueError when a First row references a deleted user."""
+    database = init_db(app)
+
+    broadcaster = type("B", (), {"id": defaults.BROADCASTER_ID})()
+
+    # Add a First with a user_id that has no matching User row (data inconsistency)
+    database.session.add(
+        First(broadcaster_id=defaults.BROADCASTER_ID, name="ghost", user_id=9999)
+    )
+    database.session.commit()
+
+    with pytest.raises(ValueError):
+        twitch.get_firsts(broadcaster)
+
+
 def test_update_reward(app, init_db):
     """Test update_reward function."""
     database = init_db(app)

@@ -322,7 +322,8 @@ def get_firsts(
     first_counts: dict[str, Any] = {}
     for user_id, count in counts_by_user_id.items():
         user = db.session.get(User, user_id)
-        assert user is not None
+        if user is None:
+            raise ValueError(f"User {user_id} referenced in firsts but not found in database")
         first_counts[user.name] = count
     for name, count in counts_by_name.items():
         first_counts[name] = first_counts.get(name, 0) + count

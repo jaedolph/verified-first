@@ -58,7 +58,10 @@ def eventsub_create(channel_id: int, role: str) -> Response:
     if role != "broadcaster":
         abort(403, "user role is not broadcaster")
 
-    reward_id = request.args["reward_id"]
+    reward_id = request.args.get("reward_id")
+
+    if reward_id is None:
+        abort(400, "reward_id is required")
 
     if reward_id == "undefined":
         abort(400, "reward id is undefined")

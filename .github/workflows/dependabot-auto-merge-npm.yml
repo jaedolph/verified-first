@@ -22,9 +22,12 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          pr=$(gh api "repos/${{ github.repository }}/actions/runs/${{ github.event.workflow_run.id }}/pull_requests" --jq '.[0]')
-          echo "url=$(echo $pr | jq -r '.html_url')" >> $GITHUB_OUTPUT
-          echo "sha=$(echo $pr | jq -r '.head.sha')" >> $GITHUB_OUTPUT
+          url=$(gh api "repos/${{ github.repository }}/pulls" \
+            -f state=open \
+            -f head="${{ github.event.workflow_run.head_repository.owner.login }}:${{ github.event.workflow_run.head_branch }}" \
+            --jq '.[0].html_url')
+          echo "url=$url" >> $GITHUB_OUTPUT
+          echo "sha=${{ github.event.workflow_run.head_sha }}" >> $GITHUB_OUTPUT
 
       - name: Check both test and lint have passed
         id: checks

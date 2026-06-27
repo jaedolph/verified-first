@@ -1,0 +1,42 @@
+name: Auto-merge Dependabot npm PRs
+
+on:
+  workflow_run:
+    workflows: ["Run frontend tests", "Run ESLint on javascript"]
+    types: [completed]
+    branches: ["dependabot/npm_and_yarn/**"]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  auto-merge:
+    runs-on: ubuntu-latest
+    if: |
+      github.event.workflow_run.actor.login == 'dependabot[bot]' &&
+      github.event.workflow_run.conclusion == 'success'
+    steps:
+      - name: Get PR info
+        id: pr
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          pr=$(gh api "repos/${{ github.repository }}/actions/runs/${{ github.event.workflow_run.id }}/pull_requests" --jq '.[0]')
+          echo "url=$(echo $pr | jq -r '.html_url')" >> $GITHUB_OUTPUT
+          echo "sha=$(echo $pr | jq -r '.head.sha')" >> $GITHUB_OUTPUT
+
+      - name: Check both test and lint have passed
+        id: checks
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          passed=$(gh api "repos/${{ github.repository }}/commits/${{ steps.pr.outputs.sha }}/check-runs" \
+            --jq '[.check_runs[] | select(.name == "test" or .name == "lint")] | (length == 2) and (map(.conclusion == "success") | all)')
+          echo "passed=$passed" >> $GITHUB_OUTPUT
+
+      - name: Merge PR
+        if: steps.checks.outputs.passed == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh pr merge --rebase "${{ steps.pr.outputs.url }}"

@@ -44,7 +44,7 @@ pycparser==3.0
     # via cffi
 pyjwt==2.13.0
     # via verifiedfirst (pyproject.toml)
-requests==2.33.1
+requests==2.34.2
     # via verifiedfirst (pyproject.toml)
 sqlalchemy==2.0.51
     # via flask-sqlalchemy

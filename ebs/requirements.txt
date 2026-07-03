@@ -48,7 +48,7 @@ requests==2.34.2
     # via verifiedfirst (pyproject.toml)
 sqlalchemy==2.0.51
     # via flask-sqlalchemy
-typing-extensions==4.15.0
+typing-extensions==4.16.0
     # via sqlalchemy
 urllib3==2.7.0
     # via requests

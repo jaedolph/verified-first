@@ -151,8 +151,8 @@ export default function Config() {
   return (
     <div id="config-page">
       <h3>
-        You must be an affiliate or partner to use this extension as it relies
-        on channel points
+        Channel Points must be enabled for your channel to use this extension
+        (Creator Dashboard &rarr; Viewer Rewards &rarr; Channel Points).
       </h3>
 
       <section>

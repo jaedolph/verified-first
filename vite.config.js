@@ -14,7 +14,6 @@ export default defineConfig({
     setupFiles: ["./src/test/setup.js"],
   },
   build: {
-    minify: false,
     rollupOptions: {
       input: {
         panel: "panel.html",

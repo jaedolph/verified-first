@@ -231,8 +231,8 @@ export default function Panel() {
               className={`firsts-row${rank === 1 ? " firsts-row--top" : ""}`}
               key={i}
             >
-              <span className="firsts-rank" aria-hidden="true">
-                {rank}
+              <span className="firsts-count" aria-hidden="true">
+                {count}
               </span>
               <span className="firsts-avatars" aria-hidden="true">
                 {shown.map((u) => (
@@ -251,7 +251,7 @@ export default function Panel() {
                 )}
               </span>
               <span className="row-detail">
-                {count}x | {users.join(", ")}
+                <span className="row-detail-text">{users.join(", ")}</span>
               </span>
             </div>
           );

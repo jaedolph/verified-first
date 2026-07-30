@@ -61,12 +61,35 @@ function groupFirsts(firsts) {
     .map(([count, users]) => ({ count: Number(count), users }));
 }
 
+/** First 1-2 characters of a username, uppercased, for the "cards" style avatar badge. */
+function initials(username) {
+  return username.slice(0, 2).toUpperCase();
+}
+
+/** Deterministic djb2-style string hash, used only for avatar color selection. */
+function hashUsername(username) {
+  let hash = 0;
+  for (let i = 0; i < username.length; i++) {
+    hash = username.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  return hash;
+}
+
+/** Deterministic per-username avatar background color for the "cards" style. */
+function avatarColor(username) {
+  const hue = Math.abs(hashUsername(username)) % 360;
+  return `hsl(${hue}, 55%, 40%)`;
+}
+
+const MAX_AVATARS = 3;
+
 export default function Panel() {
   // Use refs for values set inside Twitch SDK callbacks to avoid stale closure issues
   const authRef = useRef(null);
   const configuredRangeRef = useRef("all_time");
 
   const [title, setTitle] = useState(defaultTitle);
+  const [leaderboardStyle, setLeaderboardStyle] = useState("classic");
   const [activeRange, setActiveRange] = useState(null);
   const [customStart, setCustomStart] = useState("");
   const [customEnd, setCustomEnd] = useState("");
@@ -121,6 +144,7 @@ export default function Panel() {
           const config = JSON.parse(twitch.configuration.broadcaster.content);
           if (config.title) setTitle(config.title);
           if (config.timeRange) configuredRangeRef.current = config.timeRange;
+          if (config.leaderboardStyle) setLeaderboardStyle(config.leaderboardStyle);
         } catch (e) {
           console.error("invalid config", e);
         }
@@ -161,7 +185,7 @@ export default function Panel() {
     if (customStart && val) loadFirsts("custom", customStart, val);
   };
 
-  const renderLeaderboard = () => {
+  const renderStatus = () => {
     if (loading) return <p>Loading...</p>;
     if (error) {
       return (
@@ -175,6 +199,12 @@ export default function Panel() {
     if (firsts === null || (firsts && Object.keys(firsts).length === 0)) {
       return <p>{"No one has been first yet ¯\\_(ツ)_/¯"}</p>;
     }
+    return null;
+  };
+
+  const renderClassicLeaderboard = () => {
+    const status = renderStatus();
+    if (status) return status;
     if (firsts === undefined) return null;
 
     return groupFirsts(firsts).map(({ count, users }, i) => (
@@ -182,6 +212,52 @@ export default function Panel() {
         {count}x | {users.join(", ")}
       </p>
     ));
+  };
+
+  const renderCardsLeaderboard = () => {
+    const status = renderStatus();
+    if (status) return status;
+    if (firsts === undefined) return null;
+
+    return (
+      <div className="firsts-list">
+        {groupFirsts(firsts).map(({ count, users }, i) => {
+          const rank = i + 1;
+          const shown = users.slice(0, MAX_AVATARS);
+          const overflow = users.length - shown.length;
+
+          return (
+            <div
+              className={`firsts-row${rank === 1 ? " firsts-row--top" : ""}`}
+              key={i}
+            >
+              <span className="firsts-rank" aria-hidden="true">
+                {rank}
+              </span>
+              <span className="firsts-avatars" aria-hidden="true">
+                {shown.map((u) => (
+                  <span
+                    className="firsts-avatar"
+                    key={u}
+                    style={{ backgroundColor: avatarColor(u) }}
+                  >
+                    {initials(u)}
+                  </span>
+                ))}
+                {overflow > 0 && (
+                  <span className="firsts-avatar firsts-avatar--overflow">
+                    +{overflow}
+                  </span>
+                )}
+              </span>
+              <span className="row-detail">
+                {count}x | {users.join(", ")}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    );
   };
 
   return (
@@ -213,9 +289,13 @@ export default function Panel() {
         </div>
       )}
       <div className="firsts">
-        <blockquote>
-          <div id="firsts">{renderLeaderboard()}</div>
-        </blockquote>
+        {leaderboardStyle === "cards" ? (
+          <div id="firsts">{renderCardsLeaderboard()}</div>
+        ) : (
+          <blockquote>
+            <div id="firsts">{renderClassicLeaderboard()}</div>
+          </blockquote>
+        )}
       </div>
       <div className="footer">
         <p id="lastupdated">

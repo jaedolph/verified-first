@@ -96,6 +96,108 @@ blockquote p {
 }
 
 /* ---------------------------------------------------------------
+   Leaderboard area — "cards" style (opt-in via config)
+--------------------------------------------------------------- */
+.firsts-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.firsts-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: rgb(245, 244, 250);
+  transition: background-color 0.15s ease;
+}
+
+.firsts-row:hover {
+  background: rgb(236, 233, 247);
+}
+
+.firsts-row--top {
+  background: rgba(169, 112, 255, 0.14);
+  box-shadow: inset 2.4px 0 0 rgb(169, 112, 255);
+}
+
+.firsts-row--top:hover {
+  background: rgba(169, 112, 255, 0.2);
+}
+
+#root[data-theme="dark"] .firsts-row {
+  background: rgb(32, 32, 36);
+}
+
+#root[data-theme="dark"] .firsts-row:hover {
+  background: rgb(42, 42, 48);
+}
+
+#root[data-theme="dark"] .firsts-row--top {
+  background: rgba(169, 112, 255, 0.18);
+}
+
+#root[data-theme="dark"] .firsts-row--top:hover {
+  background: rgba(169, 112, 255, 0.24);
+}
+
+.firsts-rank {
+  flex-shrink: 0;
+  width: 16px;
+  text-align: center;
+  font-size: 12px;
+  font-weight: 600;
+  opacity: 0.55;
+}
+
+.firsts-row--top .firsts-rank {
+  color: rgb(169, 112, 255);
+  opacity: 1;
+}
+
+.firsts-avatars {
+  display: flex;
+  flex-shrink: 0;
+}
+
+.firsts-avatar {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 9px;
+  font-weight: 700;
+  color: #fff;
+  flex-shrink: 0;
+}
+
+.firsts-avatar + .firsts-avatar {
+  margin-left: -6px;
+  border: 1.5px solid rgb(245, 244, 250);
+}
+
+#root[data-theme="dark"] .firsts-avatar + .firsts-avatar {
+  border-color: rgb(32, 32, 36);
+}
+
+.firsts-avatar--overflow {
+  background: rgb(120, 120, 128);
+}
+
+.row-detail {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+}
+
+/* ---------------------------------------------------------------
    Footer (last-updated timestamp)
 --------------------------------------------------------------- */
 .footer {

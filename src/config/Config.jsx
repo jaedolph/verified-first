@@ -16,6 +16,7 @@ export default function Config() {
   const [configuredTitle, setConfiguredTitle] = useState(defaultTitle);
   const [configuredRewardId, setConfiguredRewardId] = useState(null);
   const [configuredTimeRange, setConfiguredTimeRange] = useState("all_time");
+  const [configuredStyle, setConfiguredStyle] = useState("classic");
   const [rewardsLoading, setRewardsLoading] = useState(false);
   const [rewardsError, setRewardsError] = useState(null);
   const [authStatus, setAuthStatus] = useState(null); // null | "connecting" | "success" | "failed"
@@ -58,6 +59,7 @@ export default function Config() {
           if (config.title) setConfiguredTitle(config.title);
           if (config.rewardId) setConfiguredRewardId(config.rewardId);
           if (config.timeRange) setConfiguredTimeRange(config.timeRange);
+          if (config.leaderboardStyle) setConfiguredStyle(config.leaderboardStyle);
         } catch (e) {
           console.error("invalid config", e);
           configRef.current = {};
@@ -113,6 +115,7 @@ export default function Config() {
     const form = e.target;
     const title = form.elements["panel_title"].value;
     const timeRange = form.elements["time_range"].value;
+    const leaderboardStyle = form.elements["leaderboard_style"].value;
     const rewardId = form.elements["reward_select"].value;
 
     if (!rewardId) {
@@ -126,7 +129,7 @@ export default function Config() {
 
     // Save title and time range to Twitch broadcaster config storage
     const twitch = window.Twitch.ext;
-    const updatedConfig = { ...configRef.current, title, timeRange };
+    const updatedConfig = { ...configRef.current, title, timeRange, leaderboardStyle };
     twitch.configuration.set("broadcaster", "1", JSON.stringify(updatedConfig));
     configRef.current = updatedConfig;
 
@@ -270,6 +273,18 @@ export default function Config() {
                 <option value="month">Month</option>
                 <option value="year">Year</option>
                 <option value="all_time">All Time</option>
+              </select>
+            </div>
+
+            <div className="form-group">
+              <label htmlFor="leaderboard_style">Leaderboard style:</label>
+              <select
+                name="leaderboard_style"
+                id="leaderboard_style"
+                defaultValue={configuredStyle}
+              >
+                <option value="classic">Classic</option>
+                <option value="cards">Cards</option>
               </select>
             </div>
 

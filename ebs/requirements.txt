@@ -46,7 +46,7 @@ pyjwt==2.13.0
     # via verifiedfirst (pyproject.toml)
 requests==2.34.2
     # via verifiedfirst (pyproject.toml)
-sqlalchemy==2.0.51
+sqlalchemy==2.0.52
     # via flask-sqlalchemy
 typing-extensions==4.16.0
     # via sqlalchemy

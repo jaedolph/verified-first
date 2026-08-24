@@ -23,7 +23,7 @@ flask-sqlalchemy==3.1.1
     # via verifiedfirst (pyproject.toml)
 greenlet==3.5.5
     # via sqlalchemy
-gunicorn==26.0.0
+gunicorn==26.1.0
     # via verifiedfirst (pyproject.toml)
 idna==3.18
     # via requests

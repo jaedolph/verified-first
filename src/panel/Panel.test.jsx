@@ -132,6 +132,70 @@ describe("Panel", () => {
   });
 
   // -------------------------------------------------------------------------
+  // Cards leaderboard style
+  // -------------------------------------------------------------------------
+  it("renders card rows instead of a classic list when cards style is configured", async () => {
+    fetchFirsts.mockResolvedValue({ saundo__: 69, chetnitro: 37 });
+    render(<Panel />);
+    await applyConfig({ leaderboardStyle: "cards" });
+    await authorize();
+
+    await waitFor(() => {
+      expect(document.querySelector("blockquote")).not.toBeInTheDocument();
+      expect(document.querySelectorAll(".firsts-row")).toHaveLength(2);
+    });
+  });
+
+  it("shows the firsts count (not rank) in the count badge", async () => {
+    fetchFirsts.mockResolvedValue({ saundo__: 69, chetnitro: 37 });
+    render(<Panel />);
+    await applyConfig({ leaderboardStyle: "cards" });
+    await authorize();
+
+    await waitFor(() => {
+      const counts = Array.from(
+        document.querySelectorAll(".firsts-count"),
+      ).map((el) => el.textContent.trim());
+      expect(counts).toEqual(["69", "37"]);
+    });
+  });
+
+  it("renders one avatar per tied user, plus an overflow badge past the max shown", async () => {
+    fetchFirsts.mockResolvedValue({
+      user1: 1,
+      user2: 1,
+      user3: 1,
+      user4: 1,
+      user5: 1,
+    });
+    render(<Panel />);
+    await applyConfig({ leaderboardStyle: "cards" });
+    await authorize();
+
+    await waitFor(() => {
+      expect(
+        document.querySelectorAll(".firsts-avatar:not(.firsts-avatar--overflow)"),
+      ).toHaveLength(3);
+      expect(screen.getByText("+2")).toBeInTheDocument();
+      expect(
+        screen.getByText("user1, user2, user3, user4, user5"),
+      ).toBeInTheDocument();
+    });
+  });
+
+  it("does not show the classic 'Nx' count prefix in card row text", async () => {
+    fetchFirsts.mockResolvedValue({ saundo__: 69 });
+    render(<Panel />);
+    await applyConfig({ leaderboardStyle: "cards" });
+    await authorize();
+
+    await waitFor(() => {
+      expect(screen.getByText("saundo__")).toBeInTheDocument();
+      expect(screen.queryByText(/69x/)).not.toBeInTheDocument();
+    });
+  });
+
+  // -------------------------------------------------------------------------
   // Time-range selection
   // -------------------------------------------------------------------------
   it("uses the configured default time range on first load", async () => {

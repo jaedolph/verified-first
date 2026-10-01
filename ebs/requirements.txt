@@ -52,7 +52,7 @@ typing-extensions==4.16.0
     # via sqlalchemy
 urllib3==2.8.0
     # via requests
-werkzeug==3.1.8
+werkzeug==3.1.9
     # via
     #   flask
     #   flask-cors

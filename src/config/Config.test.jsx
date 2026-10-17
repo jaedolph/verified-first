@@ -190,6 +190,59 @@ describe("Config", () => {
     });
   });
 
+  // -------------------------------------------------------------------------
+  // Leaderboard style
+  // -------------------------------------------------------------------------
+  it("defaults the leaderboard style dropdown to Classic", async () => {
+    render(<Config />);
+    await authorize({ authed: true });
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole("combobox", { name: /leaderboard style/i }),
+      ).toHaveValue("classic");
+    });
+  });
+
+  it("pre-populates leaderboard style from existing broadcaster config", async () => {
+    window.Twitch.ext.configuration.broadcaster = {
+      content: JSON.stringify({ leaderboardStyle: "cards" }),
+    };
+    render(<Config />);
+    await act(async () => { onChangedCallback(); });
+    await authorize({ authed: true });
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole("combobox", { name: /leaderboard style/i }),
+      ).toHaveValue("cards");
+    });
+  });
+
+  it("saves leaderboard style to Twitch configuration on submit", async () => {
+    createEventsub.mockResolvedValue({ eventsub_id: "sub-123" });
+    render(<Config />);
+    await authorize({ authed: true });
+
+    await waitFor(() => screen.getByLabelText(/Leaderboard title/i));
+
+    await act(async () => {
+      fireEvent.change(
+        screen.getByRole("combobox", { name: /leaderboard style/i }),
+        { target: { value: "cards" } },
+      );
+      fireEvent.submit(screen.getByRole("button", { name: "Save" }).closest("form"));
+    });
+
+    await waitFor(() => {
+      expect(window.Twitch.ext.configuration.set).toHaveBeenCalledWith(
+        "broadcaster",
+        "1",
+        expect.stringContaining('"leaderboardStyle":"cards"'),
+      );
+    });
+  });
+
   it("shows error message when createEventsub fails", async () => {
     createEventsub.mockRejectedValue(new Error("eventsub failed"));
     render(<Config />);

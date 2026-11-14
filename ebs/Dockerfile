@@ -1,4 +1,4 @@
-FROM registry.access.redhat.com/hi/python:3.14
+FROM registry.access.redhat.com/hi/python:3.15
 
 ENV GUNICORN_CMD_ARGS="\
     --bind 0.0.0.0:5000 \

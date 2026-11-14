@@ -435,7 +435,14 @@ def update_eventsub(broadcaster: Broadcaster, reward_id: str) -> str:
         eventsub_id = eventsub["id"]
         eventsub_status = eventsub["status"]
         eventsub_reward_id = eventsub["condition"]["reward_id"]
-        if eventsub_reward_id == reward_id and eventsub_status == "enabled":
+        # the client id may be shared with other deployments (e.g. test), so an eventsub
+        # pointing at a different callback url would never deliver events to this instance
+        eventsub_callback = eventsub["transport"]["callback"]
+        if (
+            eventsub_reward_id == reward_id
+            and eventsub_status == "enabled"
+            and eventsub_callback == current_app.config["EVENTSUB_CALLBACK_URL"]
+        ):
             current_app.logger.info(
                 "found existing eventsub_id=%s for broadcaster_id=%s",
                 eventsub_id,

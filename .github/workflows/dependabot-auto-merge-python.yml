@@ -16,7 +16,9 @@ jobs:
   auto-merge:
     runs-on: ubuntu-latest
     if: |
-      github.event.workflow_run.actor.login == 'dependabot[bot]' &&
+      (github.event.workflow_run.actor.login == 'dependabot[bot]' ||
+       (github.event.workflow_run.actor.login == 'github-actions[bot]' &&
+        startsWith(github.event.workflow_run.head_branch, 'dependabot/docker/'))) &&
       github.event.workflow_run.conclusion == 'success'
     steps:
       - name: Get PR URL
@@ -36,6 +38,6 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           for i in {1..3}; do
-            gh pr merge --rebase "${{ steps.pr.outputs.url }}" && break
+            gh pr merge --rebase --match-head-commit "${{ github.event.workflow_run.head_sha }}" "${{ steps.pr.outputs.url }}" && break
             [ $i -lt 3 ] && sleep $((15 + RANDOM % 15)) || exit 1
           done

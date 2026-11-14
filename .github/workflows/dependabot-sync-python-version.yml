@@ -1,0 +1,68 @@
+name: Sync Python version on Dependabot docker PRs
+
+on:
+  pull_request:
+    branches: [ "main" ]
+    paths:
+    - "ebs/Dockerfile"
+
+permissions:
+  contents: write
+  actions: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    if: |
+      github.actor == 'dependabot[bot]' &&
+      startsWith(github.head_ref, 'dependabot/docker/')
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.head_ref }}
+
+      - name: Update Python version to match container image
+        id: sync
+        run: |
+          new=$(sed -nE 's|^FROM .*/python:([0-9]+\.[0-9]+).*|\1|p' ebs/Dockerfile)
+          old=$(sed -nE 's|^requires-python = "~= ([0-9]+\.[0-9]+)\.0"|\1|p' ebs/pyproject.toml)
+          if [ -z "$new" ] || [ -z "$old" ]; then
+            echo "Could not determine Python versions (old='$old', new='$new')" >&2
+            exit 1
+          fi
+          if [ "$new" = "$old" ]; then
+            echo "Python version unchanged ($old)"
+            exit 0
+          fi
+          echo "Updating Python $old -> $new"
+
+          old_re=${old//./\\.}
+          old_env="py${old//./}"
+          new_env="py${new//./}"
+
+          sed -i -E "s/~= ${old_re}\.0/~= ${new}.0/" ebs/pyproject.toml
+          sed -i -E \
+            -e "s/\b${old_env}\b/${new_env}/g" \
+            -e "s/^(\s+)${old_re}:/\1${new}:/" \
+            -e "s/python${old_re}\b/python${new}/g" \
+            ebs/tox.ini
+
+          git diff --stat
+          echo "changed=true" >> "$GITHUB_OUTPUT"
+          echo "new=$new" >> "$GITHUB_OUTPUT"
+
+      - name: Commit and push
+        if: steps.sync.outputs.changed == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -am "Update Python version to ${{ steps.sync.outputs.new }} to match container image"
+          git push
+
+      # Pushes made with GITHUB_TOKEN don't trigger pull_request workflows, so
+      # explicitly re-run the tests against the updated branch.
+      - name: Re-run tests
+        if: steps.sync.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh workflow run run-tests.yml --ref "${{ github.head_ref }}"

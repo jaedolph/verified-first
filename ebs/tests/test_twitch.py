@@ -1,5 +1,8 @@
 """Tests for functions that interact with the Twitch API."""
 
+# pylint: disable=too-many-lines
+
+import copy
 from datetime import datetime
 from urllib.parse import quote
 
@@ -803,6 +806,39 @@ def test_update_eventsub(app, init_db, mocker):
         ]
     )
 
+    assert matching_eventsub == new_eventsub_id
+    assert updated_broadcaster.eventsub_id == new_eventsub_id
+
+
+def test_update_eventsub_wrong_callback(app, init_db, mocker):
+    """Test an eventsub pointing at a different callback url is replaced rather than reused."""
+    database = init_db(app)
+
+    foreign_eventsub = copy.deepcopy(defaults.EVENTSUB_JSON["data"][0])
+    foreign_eventsub["transport"]["callback"] = "https://verifiedfirst-test.jaedolph.net/eventsub"
+    new_eventsub_id = "18462e51-08b5-4a54-bbe8-b818a48d7a0c"
+
+    mock_get_eventsubs = mocker.patch("verifiedfirst.twitch.get_eventsubs")
+    mock_get_eventsubs.return_value = [foreign_eventsub]
+    mock_create_eventsub = mocker.patch("verifiedfirst.twitch.create_eventsub")
+    mock_create_eventsub.return_value = new_eventsub_id
+    mock_delete_eventsub = mocker.patch("verifiedfirst.twitch.delete_eventsub")
+
+    broadcaster = Broadcaster(
+        id=defaults.BROADCASTER_ID,
+        name=defaults.BROADCASTER_NAME,
+        access_token="aaaaaaaaaaaaaaaaaaaaaaaa",
+        refresh_token="bbbbbbbbbbbbbbbbbbbbbbbb",
+        eventsub_id=defaults.EVENTSUB_ID,
+    )
+    database.session.add(broadcaster)
+    database.session.commit()
+
+    matching_eventsub = twitch.update_eventsub(broadcaster, defaults.REWARD_ID)
+    updated_broadcaster = Broadcaster.query.filter(Broadcaster.id == defaults.BROADCASTER_ID).one()
+
+    mock_delete_eventsub.assert_called_once_with(defaults.EVENTSUB_ID)
+    mock_create_eventsub.assert_called_once_with(broadcaster, defaults.REWARD_ID)
     assert matching_eventsub == new_eventsub_id
     assert updated_broadcaster.eventsub_id == new_eventsub_id
 

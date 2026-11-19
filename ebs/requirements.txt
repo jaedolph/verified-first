@@ -21,8 +21,6 @@ flask-cors==6.0.5
     # via verifiedfirst (pyproject.toml)
 flask-sqlalchemy==3.1.1
     # via verifiedfirst (pyproject.toml)
-greenlet==3.5.6
-    # via sqlalchemy
 gunicorn==27.0.1
     # via verifiedfirst (pyproject.toml)
 idna==3.20
@@ -36,10 +34,10 @@ markupsafe==3.0.4
     #   flask
     #   jinja2
     #   werkzeug
-packaging==26.3
-    # via gunicorn
-psycopg2-binary==2.9.13
+psycopg==3.3.9
     # via verifiedfirst (pyproject.toml)
+psycopg-binary==3.3.9
+    # via psycopg
 pycparser==3.12
     # via cffi
 pyjwt==2.15.1

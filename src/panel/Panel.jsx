@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import { fetchFirsts } from "../shared/api.js";
+import { fetchFirsts, fetchAvatars } from "../shared/api.js";
 import { defaultTitle } from "../shared/constants.js";
 
 const TIME_RANGES = ["month", "year", "all_time", "custom"];
@@ -83,6 +83,33 @@ function avatarColor(username) {
 
 const MAX_AVATARS = 3;
 
+/**
+ * Avatar badge for the "cards" style: the user's Twitch profile picture if we have one, otherwise
+ * (or if the image fails to load) a colored badge with their initials.
+ */
+function Avatar({ username, url }) {
+  const [failed, setFailed] = useState(false);
+
+  if (url && !failed) {
+    return (
+      <img
+        className="firsts-avatar firsts-avatar--image"
+        src={url}
+        alt=""
+        onError={() => setFailed(true)}
+      />
+    );
+  }
+  return (
+    <span
+      className="firsts-avatar"
+      style={{ backgroundColor: avatarColor(username) }}
+    >
+      {initials(username)}
+    </span>
+  );
+}
+
 export default function Panel() {
   // Use refs for values set inside Twitch SDK callbacks to avoid stale closure issues
   const authRef = useRef(null);
@@ -90,6 +117,8 @@ export default function Panel() {
 
   const [title, setTitle] = useState(defaultTitle);
   const [leaderboardStyle, setLeaderboardStyle] = useState("classic");
+  const [authorized, setAuthorized] = useState(false);
+  const [avatars, setAvatars] = useState({}); // { username: profileImageUrl }
   const [activeRange, setActiveRange] = useState(null);
   const [customStart, setCustomStart] = useState("");
   const [customEnd, setCustomEnd] = useState("");
@@ -154,11 +183,21 @@ export default function Panel() {
     // Fetch leaderboard once auth token is available
     twitch.onAuthorized((authData) => {
       authRef.current = "Bearer " + authData.token;
+      setAuthorized(true);
       const range = configuredRangeRef.current;
       setActiveRange(range);
       loadFirsts(range);
     });
   }, [loadFirsts]);
+
+  // Profile pictures are only shown in the cards style, so only fetch them when it's in use. They
+  // cover every user on the channel, so one fetch serves all time ranges.
+  useEffect(() => {
+    if (leaderboardStyle !== "cards" || !authorized) return;
+    fetchAvatars(authRef.current)
+      .then(setAvatars)
+      .catch((e) => console.error("could not get avatars", e));
+  }, [leaderboardStyle, authorized]);
 
   const handleRangeClick = (range) => {
     if (range === "custom") {
@@ -236,13 +275,7 @@ export default function Panel() {
               </span>
               <span className="firsts-avatars" aria-hidden="true">
                 {shown.map((u) => (
-                  <span
-                    className="firsts-avatar"
-                    key={u}
-                    style={{ backgroundColor: avatarColor(u) }}
-                  >
-                    {initials(u)}
-                  </span>
+                  <Avatar key={u} username={u} url={avatars[u]} />
                 ))}
                 {overflow > 0 && (
                   <span className="firsts-avatar firsts-avatar--overflow">

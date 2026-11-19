@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import {
   fetchFirsts,
+  fetchAvatars,
   checkAuth,
   fetchRewards,
   createEventsub,
@@ -66,6 +67,26 @@ describe("fetchFirsts", () => {
   it("throws on non-ok responses other than 404", async () => {
     mockFetch(500, "server error");
     await expect(fetchFirsts(AUTH, null, null)).rejects.toThrow();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// fetchAvatars
+// ---------------------------------------------------------------------------
+describe("fetchAvatars", () => {
+  it("fetches from /avatars with the auth header", async () => {
+    mockFetch(200, { user1: "https://example.com/user1.png" });
+    const result = await fetchAvatars(AUTH);
+    expect(fetch).toHaveBeenCalledWith(
+      `${BASE_URL}/avatars`,
+      expect.objectContaining({ headers: expect.objectContaining({ Authorization: AUTH }) }),
+    );
+    expect(result).toEqual({ user1: "https://example.com/user1.png" });
+  });
+
+  it("throws on non-ok responses", async () => {
+    mockFetch(500, "server error");
+    await expect(fetchAvatars(AUTH)).rejects.toThrow();
   });
 });
 

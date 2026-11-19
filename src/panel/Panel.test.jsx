@@ -1,10 +1,11 @@
 import { render, screen, fireEvent, waitFor, act } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import Panel from "./Panel";
-import { fetchFirsts } from "../shared/api.js";
+import { fetchFirsts, fetchAvatars } from "../shared/api.js";
 
 vi.mock("../shared/api.js", () => ({
   fetchFirsts: vi.fn(),
+  fetchAvatars: vi.fn(),
 }));
 
 describe("Panel", () => {
@@ -13,6 +14,7 @@ describe("Panel", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    fetchAvatars.mockResolvedValue({});
     onAuthorizedCallback = null;
     onChangedCallback = null;
 
@@ -193,6 +195,66 @@ describe("Panel", () => {
       expect(screen.getByText("saundo__")).toBeInTheDocument();
       expect(screen.queryByText(/69x/)).not.toBeInTheDocument();
     });
+  });
+
+  it("shows profile pictures where available and initials for everyone else", async () => {
+    fetchFirsts.mockResolvedValue({ saundo__: 69, chetnitro: 37 });
+    fetchAvatars.mockResolvedValue({ saundo__: "https://example.com/saundo.png" });
+    render(<Panel />);
+    await applyConfig({ leaderboardStyle: "cards" });
+    await authorize("abc");
+
+    await waitFor(() => {
+      const images = document.querySelectorAll("img.firsts-avatar");
+      expect(images).toHaveLength(1);
+      expect(images[0]).toHaveAttribute("src", "https://example.com/saundo.png");
+      expect(screen.getByText("CH")).toBeInTheDocument();
+    });
+    expect(fetchAvatars).toHaveBeenCalledWith("Bearer abc");
+  });
+
+  it("falls back to initials if a profile picture fails to load", async () => {
+    fetchFirsts.mockResolvedValue({ saundo__: 69 });
+    fetchAvatars.mockResolvedValue({ saundo__: "https://example.com/broken.png" });
+    render(<Panel />);
+    await applyConfig({ leaderboardStyle: "cards" });
+    await authorize();
+
+    const image = await waitFor(() => {
+      const img = document.querySelector("img.firsts-avatar");
+      expect(img).toBeInTheDocument();
+      return img;
+    });
+    fireEvent.error(image);
+
+    expect(document.querySelector("img.firsts-avatar")).not.toBeInTheDocument();
+    expect(screen.getByText("SA")).toBeInTheDocument();
+  });
+
+  it("still shows the leaderboard if profile pictures can't be fetched", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    fetchFirsts.mockResolvedValue({ saundo__: 69 });
+    fetchAvatars.mockRejectedValue(new Error("server error"));
+    render(<Panel />);
+    await applyConfig({ leaderboardStyle: "cards" });
+    await authorize();
+
+    await waitFor(() => {
+      expect(screen.getByText("saundo__")).toBeInTheDocument();
+      expect(screen.getByText("SA")).toBeInTheDocument();
+    });
+    expect(fetchAvatars).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not fetch profile pictures for the classic style", async () => {
+    fetchFirsts.mockResolvedValue({ saundo__: 69 });
+    render(<Panel />);
+    await authorize();
+
+    await waitFor(() => {
+      expect(screen.getByText(/69x \| saundo__/)).toBeInTheDocument();
+    });
+    expect(fetchAvatars).not.toHaveBeenCalled();
   });
 
   // -------------------------------------------------------------------------

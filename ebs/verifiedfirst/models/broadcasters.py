@@ -16,4 +16,4 @@ class Broadcaster(db.Model):  # type: ignore
     refresh_token: str = db.Column(db.String, nullable=False)
     reward_name: str = db.Column(db.String)
     reward_id: str = db.Column(db.String)
-    eventsub_id: str = db.Column(db.String)
+    eventsub_id: str | None = db.Column(db.String)

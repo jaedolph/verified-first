@@ -364,34 +364,72 @@ def create_eventsub(broadcaster: Broadcaster, reward_id: str) -> str:
         eventsub_id = resp.json()["data"][0]["id"]
         assert isinstance(eventsub_id, str)
     except (RequestException, KeyError, AssertionError) as exp:
-        raise RequestException("could not create eventsub") from exp
+        # keep the response so callers can tell why it failed (e.g. 403 if the broadcaster
+        # hasn't authorized the extension)
+        raise RequestException(
+            "could not create eventsub", response=getattr(exp, "response", None)
+        ) from exp
 
     return eventsub_id
 
 
+def list_eventsubs(params: dict[str, Any]) -> List[Any]:
+    """Get every eventsub the application has created that matches the query params, following the
+    pagination cursor until the last page.
+
+    This includes eventsubs created by other deployments sharing the same client id (e.g. test), so
+    callers should check the transport callback before acting on them.
+
+    :param params: query params to filter the eventsubs by e.g. {"user_id": 1234}
+    :raises RequestException: if any request fails
+    :return: list of eventsubs
+    """
+    eventsubs: List[Any] = []
+    cursor = None
+    while True:
+        page_params = dict(params)
+        if cursor:
+            page_params["after"] = cursor
+        req = Request(
+            method="GET",
+            url=f"{current_app.config['TWITCH_API_BASEURL']}/eventsub/subscriptions",
+            params=page_params,
+            headers={"Client-ID": current_app.config["CLIENT_ID"]},
+        )
+
+        resp = request_twitch_api_app(req)
+
+        try:
+            page = resp.json()
+            page_eventsubs = page["data"]
+            assert isinstance(page_eventsubs, list)
+            cursor = page.get("pagination", {}).get("cursor")
+        except (KeyError, TypeError, AttributeError, AssertionError) as exp:
+            raise RequestException("could not get eventsubs") from exp
+
+        eventsubs.extend(page_eventsubs)
+        if not cursor:
+            return eventsubs
+
+
 def get_eventsubs(broadcaster: Broadcaster) -> List[Any]:
-    """Get list of eventsubs the application has created.
+    """Get list of eventsubs the application has created for a broadcaster.
 
     :param broadcaster: broadcaster to get eventsubs for
     :raises RequestException: if the request fails
     :return: list of eventsubs
     """
-    req = Request(
-        method="GET",
-        url=f"{current_app.config['TWITCH_API_BASEURL']}/eventsub/subscriptions",
-        params={"user_id": broadcaster.id},
-        headers={"Client-ID": current_app.config["CLIENT_ID"]},
-    )
+    return list_eventsubs({"user_id": broadcaster.id})
 
-    resp = request_twitch_api_app(req)
 
-    try:
-        eventsubs = resp.json()["data"]
-        assert isinstance(eventsubs, list)
-    except (KeyError, TypeError, AssertionError) as exp:
-        raise RequestException("could not get eventsubs") from exp
+def get_all_eventsubs() -> List[Any]:
+    """Get every channel points redemption eventsub the application has created, for all
+    broadcasters.
 
-    return eventsubs
+    :raises RequestException: if any request fails
+    :return: list of eventsubs
+    """
+    return list_eventsubs({"type": "channel.channel_points_custom_reward_redemption.add"})
 
 
 def delete_eventsub(eventsub_id: str) -> None:
@@ -411,12 +449,19 @@ def delete_eventsub(eventsub_id: str) -> None:
     current_app.logger.debug("delete eventsub response=%s", resp.text)
 
 
-def update_eventsub(broadcaster: Broadcaster, reward_id: str) -> str:
+def update_eventsub(
+    broadcaster: Broadcaster, reward_id: str, existing_eventsubs: List[Any] | None = None
+) -> str:
     """Configure eventsubs for channel points events to ensure the application is listening for the
     correct reward redemptions for a specific broadcaster.
 
+    Only eventsubs pointing at this instance's EVENTSUB_CALLBACK_URL are reused or deleted. The
+    client id may be shared with other deployments (e.g. test), and their eventsubs are left alone.
+
     :param broadcaster: broadcaster to update eventsub data for
     :param reward_id: id of the reward to update the eventsub for
+    :param existing_eventsubs: the broadcaster's eventsubs if they have already been fetched from
+        the twitch api, otherwise they are fetched
     :return: id of the eventsub
     """
     broadcaster_id = broadcaster.id
@@ -427,28 +472,22 @@ def update_eventsub(broadcaster: Broadcaster, reward_id: str) -> str:
     current_app.logger.debug("db_eventsub_id=%s", db_eventsub_id)
 
     # check if eventsub id exists in the twitch API
-    existing_eventsubs = get_eventsubs(broadcaster)
-    matching_eventsub = None
+    if existing_eventsubs is None:
+        existing_eventsubs = get_eventsubs(broadcaster)
     current_app.logger.debug("existing_eventsubs=%s", existing_eventsubs)
+    matching_eventsubs = []
     for eventsub in existing_eventsubs:
         current_app.logger.debug("eventsub=%s", eventsub)
         eventsub_id = eventsub["id"]
-        eventsub_status = eventsub["status"]
-        eventsub_reward_id = eventsub["condition"]["reward_id"]
-        # the client id may be shared with other deployments (e.g. test), so an eventsub
-        # pointing at a different callback url would never deliver events to this instance
-        eventsub_callback = eventsub["transport"]["callback"]
-        if (
-            eventsub_reward_id == reward_id
-            and eventsub_status == "enabled"
-            and eventsub_callback == current_app.config["EVENTSUB_CALLBACK_URL"]
-        ):
-            current_app.logger.info(
-                "found existing eventsub_id=%s for broadcaster_id=%s",
-                eventsub_id,
-                broadcaster_id,
+        # an eventsub pointing at a different callback url belongs to another deployment sharing
+        # the client id, it would never deliver events to this instance and isn't ours to delete
+        if eventsub["transport"]["callback"] != current_app.config["EVENTSUB_CALLBACK_URL"]:
+            current_app.logger.debug(
+                "ignoring eventsub_id=%s for another callback url", eventsub_id
             )
-            matching_eventsub = eventsub_id
+            continue
+        if eventsub["condition"]["reward_id"] == reward_id and eventsub["status"] == "enabled":
+            matching_eventsubs.append(eventsub_id)
         else:
             current_app.logger.info(
                 "deleting old eventsub eventsub_id=%s for broadcaster_id=%s",
@@ -456,6 +495,27 @@ def update_eventsub(broadcaster: Broadcaster, reward_id: str) -> str:
                 broadcaster_id,
             )
             delete_eventsub(eventsub_id)
+
+    # keep a single matching eventsub, preferring the one already in the database
+    matching_eventsub = None
+    if matching_eventsubs:
+        if db_eventsub_id in matching_eventsubs:
+            matching_eventsub = db_eventsub_id
+        else:
+            matching_eventsub = matching_eventsubs[0]
+        current_app.logger.info(
+            "found existing eventsub_id=%s for broadcaster_id=%s",
+            matching_eventsub,
+            broadcaster_id,
+        )
+        for eventsub_id in matching_eventsubs:
+            if eventsub_id != matching_eventsub:
+                current_app.logger.info(
+                    "deleting duplicate eventsub eventsub_id=%s for broadcaster_id=%s",
+                    eventsub_id,
+                    broadcaster_id,
+                )
+                delete_eventsub(eventsub_id)
 
     # create eventsub if it doesn't exist
     if matching_eventsub is None:

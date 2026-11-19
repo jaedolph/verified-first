@@ -10,8 +10,8 @@ vi.mock("../shared/api.js", () => ({
 }));
 
 const MOCK_REWARDS = [
-  { id: "reward-1", title: "First" },
-  { id: "reward-2", title: "Hydrate" },
+  { id: "reward-1", title: "First", configured: true },
+  { id: "reward-2", title: "Hydrate", configured: false },
 ];
 
 describe("Config", () => {
@@ -153,9 +153,9 @@ describe("Config", () => {
     });
   });
 
-  it("doesn't save the reward to Twitch configuration and drops an old one", async () => {
+  it("doesn't save the reward to Twitch configuration and keeps an old one", async () => {
     // the Twitch config is shared with the other version of the extension, so the reward is only
-    // stored in the EBS
+    // stored in the EBS. Older released versions still read rewardId, so it's left alone
     window.Twitch.ext.configuration.broadcaster = {
       content: JSON.stringify({ title: "Saved Title", rewardId: "reward-2" }),
     };
@@ -179,8 +179,90 @@ describe("Config", () => {
     });
     expect(window.Twitch.ext.configuration.set).toHaveBeenCalledTimes(1);
     const savedConfig = JSON.parse(window.Twitch.ext.configuration.set.mock.calls[0][2]);
-    expect(savedConfig).not.toHaveProperty("rewardId");
+    expect(savedConfig.rewardId).toBe("reward-2");
     expect(savedConfig.title).toBe("Saved Title");
+  });
+
+  it("selects nothing when the EBS has no configured reward", async () => {
+    // e.g. an older EBS that doesn't mark the configured reward
+    window.Twitch.ext.configuration.broadcaster = {
+      content: JSON.stringify({ title: "Saved Title" }),
+    };
+    render(<Config />);
+    await act(async () => { onChangedCallback(); });
+    await authorize({
+      authed: true,
+      rewards: [
+        { id: "reward-1", title: "First" },
+        { id: "reward-2", title: "Hydrate" },
+      ],
+    });
+
+    await waitFor(() => {
+      expect(screen.getByRole("combobox", { name: /reward/i })).toHaveValue("");
+    });
+
+    // saving without choosing a reward doesn't change anything
+    await act(async () => {
+      fireEvent.submit(screen.getByRole("button", { name: "Save" }).closest("form"));
+    });
+
+    expect(screen.getByText(/No reward selected/)).toBeInTheDocument();
+    expect(createEventsub).not.toHaveBeenCalled();
+    expect(window.Twitch.ext.configuration.set).not.toHaveBeenCalled();
+  });
+
+  it("keeps the saved values when the form reloads after saving", async () => {
+    createEventsub.mockResolvedValue({ eventsub_id: "sub-123" });
+    render(<Config />);
+    await authorize({ authed: true });
+
+    await waitFor(() => screen.getByLabelText(/Leaderboard title/i));
+
+    await act(async () => {
+      fireEvent.change(screen.getByLabelText(/Leaderboard title/i), {
+        target: { value: "New Title" },
+      });
+      fireEvent.change(screen.getByRole("combobox", { name: /reward/i }), {
+        target: { value: "reward-2" },
+      });
+      fireEvent.change(screen.getByRole("combobox", { name: /time range/i }), {
+        target: { value: "month" },
+      });
+      fireEvent.change(screen.getByRole("combobox", { name: /leaderboard style/i }), {
+        target: { value: "cards" },
+      });
+      fireEvent.submit(screen.getByRole("button", { name: "Save" }).closest("form"));
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText(/Configuration saved successfully/)).toBeInTheDocument();
+    });
+
+    // Twitch refreshes the token, which reloads the rewards and remounts the form. The reload
+    // fails, so the form is rebuilt from the rewards already loaded
+    let failReload;
+    checkAuth.mockResolvedValue(true);
+    fetchRewards.mockReturnValue(
+      new Promise((resolve, reject) => {
+        failReload = reject;
+      }),
+    );
+    await act(async () => {
+      onAuthorizedCallback({ token: "new-token", clientId: "client-abc" });
+    });
+    expect(screen.queryByLabelText(/Leaderboard title/i)).not.toBeInTheDocument();
+    await act(async () => {
+      failReload(new Error("network error"));
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText(/Could not load channel points rewards/)).toBeInTheDocument();
+    });
+    expect(screen.getByLabelText(/Leaderboard title/i)).toHaveValue("New Title");
+    expect(screen.getByRole("combobox", { name: /reward/i })).toHaveValue("reward-2");
+    expect(screen.getByRole("combobox", { name: /time range/i })).toHaveValue("month");
+    expect(screen.getByRole("combobox", { name: /leaderboard style/i })).toHaveValue("cards");
   });
 
   it("submits config and calls createEventsub with selected reward", async () => {

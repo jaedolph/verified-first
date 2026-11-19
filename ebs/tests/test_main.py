@@ -3,6 +3,7 @@
 import copy
 from datetime import datetime
 
+import pytest
 from flask import url_for
 from requests import RequestException
 from sqlalchemy.exc import SQLAlchemyError
@@ -141,9 +142,14 @@ def test_eventsub_create(client, mocker):
     mock_broadcaster = mocker.Mock()
     mock_get_broadcaster = mocker.patch("verifiedfirst.twitch.get_broadcaster")
     mock_get_broadcaster.return_value = mock_broadcaster
-    mock_update_reward = mocker.patch("verifiedfirst.twitch.update_reward")
+    mock_twitch = mocker.Mock()
+    mock_update_reward = mocker.patch(
+        "verifiedfirst.twitch.update_reward", mock_twitch.update_reward
+    )
     mock_update_reward.return_value = defaults.REWARD_ID
-    mock_update_eventsub = mocker.patch("verifiedfirst.twitch.update_eventsub")
+    mock_update_eventsub = mocker.patch(
+        "verifiedfirst.twitch.update_eventsub", mock_twitch.update_eventsub
+    )
     mock_update_eventsub.return_value = defaults.EVENTSUB_ID
 
     resp = client.post(
@@ -153,8 +159,30 @@ def test_eventsub_create(client, mocker):
     assert resp.status_code == 200
     assert resp.json["eventsub_id"] == defaults.EVENTSUB_ID
     mock_get_broadcaster.assert_called_with(defaults.CHANNEL_ID)
-    mock_update_reward.assert_called_with(mock_broadcaster, defaults.REWARD_ID)
+    # the reward is only stored once the eventsub exists
+    assert mock_twitch.mock_calls == [
+        mocker.call.update_eventsub(mock_broadcaster, defaults.REWARD_ID),
+        mocker.call.update_reward(mock_broadcaster, defaults.REWARD_ID),
+    ]
+
+
+def test_eventsub_create_eventsub_fails(client, mocker):
+    """Test the stored reward isn't changed if the eventsub can't be created, so /rewards doesn't
+    report a reward that isn't being listened for."""
+    mock_jwt = mocker.patch("verifiedfirst.verify.verify_jwt")
+    mock_jwt.return_value = (defaults.CHANNEL_ID, "broadcaster")
+    mock_broadcaster = mocker.Mock()
+    mock_get_broadcaster = mocker.patch("verifiedfirst.twitch.get_broadcaster")
+    mock_get_broadcaster.return_value = mock_broadcaster
+    mock_update_reward = mocker.patch("verifiedfirst.twitch.update_reward")
+    mock_update_eventsub = mocker.patch("verifiedfirst.twitch.update_eventsub")
+    mock_update_eventsub.side_effect = RequestException("could not create eventsub")
+
+    with pytest.raises(RequestException):
+        client.post(url_for("main.eventsub_create"), query_string={"reward_id": defaults.REWARD_ID})
+
     mock_update_eventsub.assert_called_with(mock_broadcaster, defaults.REWARD_ID)
+    mock_update_reward.assert_not_called()
 
 
 def test_eventsub_create_not_broadcaster(client, mocker):

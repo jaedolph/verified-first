@@ -342,7 +342,10 @@ def test_eventsub_notification(client, mocker):
     assert resp.json == first_json
     assert resp.status_code == 200
     mock_add_first.assert_called_with(
-        defaults.BROADCASTER_ID, defaults.TEST_USER_ID, defaults.TEST_USER_NAME
+        defaults.BROADCASTER_ID,
+        defaults.TEST_USER_ID,
+        defaults.TEST_USER_NAME,
+        defaults.EVENTSUB_NOTIFICATION_JSON["event"]["id"],
     )
 
 

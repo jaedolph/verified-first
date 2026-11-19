@@ -68,7 +68,7 @@ jobs:
           # so they are safe to run on every deploy
           env_vars=$(podman container inspect verifiedfirst-test \
             --format '{{range .Config.Env}}{{println .}}{{end}}' | grep '^VFIRST_')
-          for migration in migrate_user_ids migrate_profile_images; do
+          for migration in migrate_user_ids migrate_profile_images migrate_redemption_ids; do
             podman run --rm \
               --volumes-from verifiedfirst-test \
               --env-file <(printf '%s\n' "$env_vars") \

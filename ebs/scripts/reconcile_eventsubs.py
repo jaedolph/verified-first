@@ -10,7 +10,10 @@ The client id is shared with other deployments (e.g. test), so eventsubs with a 
 are ignored and never deleted.
 
 Broadcasters that have revoked the extension's authorization can't have an eventsub created until
-they authorize it again. They are counted as unauthorized rather than failed.
+they authorize it again. They are counted as unauthorized rather than failed, and their eventsub id
+is cleared so the database reflects that they have no eventsub. Broadcasters with no eventsub id
+and no eventsubs are counted as inactive and not retried on later runs, so they don't cost a twitch
+api call every run. Saving the extension config creates their eventsub again.
 
 Usage:
     python -m scripts.reconcile_eventsubs [--dry-run]
@@ -38,7 +41,8 @@ def reconcile_eventsubs(dry_run: bool = False) -> Counter[str]:
 
     :param dry_run: only report what would be changed, without creating or deleting anything
     :raises RequestException: if the eventsubs can't be listed
-    :return: number of broadcasters by result (checked, ok, repaired, unauthorized, failed)
+    :return: number of broadcasters by result (checked, ok, inactive, repaired, unauthorized,
+        failed)
     """
     callback_url = current_app.config["EVENTSUB_CALLBACK_URL"]
 
@@ -66,6 +70,12 @@ def reconcile_eventsubs(dry_run: bool = False) -> Counter[str]:
             summary["ok"] += 1
             continue
 
+        # e.g. the broadcaster revoked authorization, so creating an eventsub would fail
+        if broadcaster.eventsub_id is None and not own_eventsubs:
+            logger.debug("skipping inactive broadcaster_id=%s", broadcaster.id)
+            summary["inactive"] += 1
+            continue
+
         logger.warning(
             "broadcaster_id=%s (%s) has no working eventsub for reward_id=%s, "
             "db eventsub_id=%s, eventsubs=%s",
@@ -88,8 +98,12 @@ def reconcile_eventsubs(dry_run: bool = False) -> Counter[str]:
             response = getattr(exp, "response", None)
             if response is not None and response.status_code == codes.forbidden:
                 logger.warning(
-                    "broadcaster_id=%s hasn't authorized the extension: %s", broadcaster.id, exp
+                    "broadcaster_id=%s hasn't authorized the extension, clearing eventsub_id=%s",
+                    broadcaster.id,
+                    broadcaster.eventsub_id,
                 )
+                broadcaster.eventsub_id = None
+                db.session.commit()
                 summary["unauthorized"] += 1
                 continue
             logger.error("could not repair eventsub for broadcaster_id=%s: %s", broadcaster.id, exp)
@@ -121,7 +135,7 @@ def main() -> None:
 
     repaired_label = "would repair" if args.dry_run else "repaired"
     print(
-        f"checked: {summary['checked']}, ok: {summary['ok']}, "
+        f"checked: {summary['checked']}, ok: {summary['ok']}, inactive: {summary['inactive']}, "
         f"{repaired_label}: {summary['repaired']}, unauthorized: {summary['unauthorized']}, "
         f"failed: {summary['failed']}"
     )

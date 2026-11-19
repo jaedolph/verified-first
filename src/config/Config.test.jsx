@@ -153,17 +153,34 @@ describe("Config", () => {
     });
   });
 
-  it("falls back to the Twitch config reward if the EBS has none configured", async () => {
+  it("doesn't save the reward to Twitch configuration and drops an old one", async () => {
+    // the Twitch config is shared with the other version of the extension, so the reward is only
+    // stored in the EBS
     window.Twitch.ext.configuration.broadcaster = {
-      content: JSON.stringify({ rewardId: "reward-2" }),
+      content: JSON.stringify({ title: "Saved Title", rewardId: "reward-2" }),
     };
+    createEventsub.mockResolvedValue({ eventsub_id: "sub-123" });
     render(<Config />);
     await act(async () => { onChangedCallback(); });
     await authorize({ authed: true });
 
-    await waitFor(() => {
-      expect(screen.getByRole("combobox", { name: /reward/i })).toHaveValue("reward-2");
+    await waitFor(() => screen.getByLabelText(/Leaderboard title/i));
+
+    await act(async () => {
+      fireEvent.change(screen.getByRole("combobox", { name: /reward/i }), {
+        target: { value: "reward-1" },
+      });
+      fireEvent.submit(screen.getByRole("button", { name: "Save" }).closest("form"));
     });
+
+    await waitFor(() => {
+      expect(createEventsub).toHaveBeenCalledWith("Bearer test-token", "reward-1");
+      expect(screen.getByText(/Configuration saved successfully/)).toBeInTheDocument();
+    });
+    expect(window.Twitch.ext.configuration.set).toHaveBeenCalledTimes(1);
+    const savedConfig = JSON.parse(window.Twitch.ext.configuration.set.mock.calls[0][2]);
+    expect(savedConfig).not.toHaveProperty("rewardId");
+    expect(savedConfig.title).toBe("Saved Title");
   });
 
   it("submits config and calls createEventsub with selected reward", async () => {

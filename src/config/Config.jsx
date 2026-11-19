@@ -14,7 +14,6 @@ export default function Config() {
   const [isAuthed, setIsAuthed] = useState(null); // null = checking, true/false = result
   const [rewards, setRewards] = useState(null);
   const [configuredTitle, setConfiguredTitle] = useState(defaultTitle);
-  const [configuredRewardId, setConfiguredRewardId] = useState(null);
   const [configuredTimeRange, setConfiguredTimeRange] = useState("all_time");
   const [configuredStyle, setConfiguredStyle] = useState("classic");
   const [rewardsLoading, setRewardsLoading] = useState(false);
@@ -57,7 +56,6 @@ export default function Config() {
           const config = JSON.parse(twitch.configuration.broadcaster.content);
           configRef.current = config;
           if (config.title) setConfiguredTitle(config.title);
-          if (config.rewardId) setConfiguredRewardId(config.rewardId);
           if (config.timeRange) setConfiguredTimeRange(config.timeRange);
           if (config.leaderboardStyle) setConfiguredStyle(config.leaderboardStyle);
         } catch (e) {
@@ -127,20 +125,18 @@ export default function Config() {
     setSubmitStatus("loading");
     setSubmitError(null);
 
-    // Save title and time range to Twitch broadcaster config storage
+    // Save title and time range to Twitch broadcaster config storage. The reward isn't saved here,
+    // as this config is shared between the released and testing versions of the extension, and
+    // each has its own EBS that stores the reward. Older versions saved it, so drop it.
     const twitch = window.Twitch.ext;
     const updatedConfig = { ...configRef.current, title, timeRange, leaderboardStyle };
+    delete updatedConfig.rewardId;
     twitch.configuration.set("broadcaster", "1", JSON.stringify(updatedConfig));
     configRef.current = updatedConfig;
 
     // Create/update the EventSub subscription for the selected reward
     try {
       await createEventsub(authRef.current, rewardId);
-
-      const finalConfig = { ...updatedConfig, rewardId };
-      twitch.configuration.set("broadcaster", "1", JSON.stringify(finalConfig));
-      configRef.current = finalConfig;
-      setConfiguredRewardId(rewardId);
       setSubmitStatus("success");
     } catch (e) {
       console.error("Failed to create eventsub:", e);
@@ -151,10 +147,8 @@ export default function Config() {
 
   const showConfigForm = isAuthed && rewards && !rewardsLoading;
 
-  // Prefer the reward the EBS says it is listening for. The Twitch config is shared between the
-  // released and testing versions of the extension, which each use a different EBS.
-  const selectedRewardId =
-    rewards?.find((reward) => reward.configured)?.id ?? configuredRewardId ?? "";
+  // Preselect the reward the EBS says it is listening for
+  const selectedRewardId = rewards?.find((reward) => reward.configured)?.id ?? "";
 
   return (
     <div id="config-page">

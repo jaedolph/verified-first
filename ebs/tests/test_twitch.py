@@ -645,13 +645,20 @@ def test_create_eventsub(app, mocker):
 def test_create_eventsub_403(app, mocker):  # pylint: disable=unused-argument
     """Test create_eventsub throws the correct exception if the twitch API returns an error."""
     mock_request_twitch_api = mocker.patch("verifiedfirst.twitch.request_twitch_api_app")
-    mock_request_twitch_api.side_effect = RequestException("test exception")
+    mock_error_response = mocker.Mock()
+    mock_error_response.status_code = 403
+    mock_request_twitch_api.side_effect = RequestException(
+        "test exception", response=mock_error_response
+    )
     mock_broadcaster = mocker.Mock()
     access_token = "aaaaaaaaaaaaaaaaaaaaaaaa"
     mock_broadcaster.access_token = access_token
 
-    with pytest.raises(RequestException):
+    with pytest.raises(RequestException) as exc_info:
         twitch.create_eventsub(mock_broadcaster, defaults.REWARD_ID)
+
+    # the response is kept so callers can tell why it failed
+    assert exc_info.value.response is mock_error_response
 
 
 def test_get_eventsubs(app, mocker):
@@ -672,6 +679,26 @@ def test_get_eventsubs(app, mocker):
     assert request.headers == {"Client-ID": app.config["CLIENT_ID"]}
     assert request.params == {"user_id": defaults.BROADCASTER_ID}
     assert eventsubs == defaults.EVENTSUB_JSON["data"]
+
+
+def test_get_eventsubs_pagination(app, mocker):  # pylint: disable=unused-argument
+    """Test get_eventsubs follows the pagination cursor until the last page."""
+    first_page = copy.deepcopy(defaults.EVENTSUB_JSON)
+    first_page["pagination"] = {"cursor": "page2cursor"}
+    first_response = mocker.Mock()
+    first_response.json.return_value = first_page
+    second_response = mocker.Mock()
+    second_response.json.return_value = defaults.EVENTSUB_JSON
+    mock_request_twitch_api = mocker.patch("verifiedfirst.twitch.request_twitch_api_app")
+    mock_request_twitch_api.side_effect = [first_response, second_response]
+    mock_broadcaster = mocker.Mock()
+    mock_broadcaster.id = defaults.BROADCASTER_ID
+
+    eventsubs = twitch.get_eventsubs(mock_broadcaster)
+
+    second_request = mock_request_twitch_api.call_args_list[1].args[0]
+    assert second_request.params == {"user_id": defaults.BROADCASTER_ID, "after": "page2cursor"}
+    assert eventsubs == defaults.EVENTSUB_JSON["data"] * 2
 
 
 def test_get_eventsubs_bad_format(app, mocker):  # pylint: disable=unused-argument
@@ -708,6 +735,50 @@ def test_get_eventsub_fail(app, mocker):  # pylint: disable=unused-argument
 
     with pytest.raises(RequestException):
         twitch.get_eventsubs(mock_broadcaster)
+
+
+def test_get_all_eventsubs(app, mocker):
+    """Test get_all_eventsubs follows the pagination cursor until the last page."""
+    second_eventsub = copy.deepcopy(defaults.EVENTSUB_JSON["data"][0])
+    second_eventsub["id"] = "18462e51-08b5-4a54-bbe8-b818a48d7a0c"
+    first_page = copy.deepcopy(defaults.EVENTSUB_JSON)
+    first_page["pagination"] = {"cursor": "page2cursor"}
+    second_page = copy.deepcopy(defaults.EVENTSUB_JSON)
+    second_page["data"] = [second_eventsub]
+
+    first_response = mocker.Mock()
+    first_response.json.return_value = first_page
+    second_response = mocker.Mock()
+    second_response.json.return_value = second_page
+    mock_request_twitch_api = mocker.patch("verifiedfirst.twitch.request_twitch_api_app")
+    mock_request_twitch_api.side_effect = [first_response, second_response]
+
+    eventsubs = twitch.get_all_eventsubs()
+
+    assert mock_request_twitch_api.call_count == 2
+    first_request = mock_request_twitch_api.call_args_list[0].args[0]
+    second_request = mock_request_twitch_api.call_args_list[1].args[0]
+    assert first_request.method == "GET"
+    assert first_request.url == f"{app.config['TWITCH_API_BASEURL']}/eventsub/subscriptions"
+    assert first_request.headers == {"Client-ID": app.config["CLIENT_ID"]}
+    assert first_request.params == {"type": "channel.channel_points_custom_reward_redemption.add"}
+    assert second_request.params == {
+        "type": "channel.channel_points_custom_reward_redemption.add",
+        "after": "page2cursor",
+    }
+    assert eventsubs == defaults.EVENTSUB_JSON["data"] + [second_eventsub]
+
+
+def test_get_all_eventsubs_bad_format(app, mocker):  # pylint: disable=unused-argument
+    """Test get_all_eventsubs throws correct exception when data is in wrong format."""
+    mock_response = mocker.Mock()
+    mock_request_twitch_api = mocker.patch("verifiedfirst.twitch.request_twitch_api_app")
+    mock_request_twitch_api.return_value = mock_response
+
+    for bad_response in ({"data": {}}, {}, "not json", {"data": [], "pagination": "bad"}):
+        mock_response.json.return_value = bad_response
+        with pytest.raises(RequestException):
+            twitch.get_all_eventsubs()
 
 
 def test_delete_eventsub(app, mocker):  # pylint: disable=unused-argument
@@ -811,8 +882,9 @@ def test_update_eventsub(app, init_db, mocker):
     assert updated_broadcaster.eventsub_id == new_eventsub_id
 
 
-def test_update_eventsub_wrong_callback(app, init_db, mocker):
-    """Test an eventsub pointing at a different callback url is replaced rather than reused."""
+def test_update_eventsub_other_callback(app, init_db, mocker):
+    """Test an eventsub pointing at a different callback url is neither reused nor deleted, as it
+    belongs to another deployment sharing the client id."""
     database = init_db(app)
 
     foreign_eventsub = copy.deepcopy(defaults.EVENTSUB_JSON["data"][0])
@@ -838,10 +910,57 @@ def test_update_eventsub_wrong_callback(app, init_db, mocker):
     matching_eventsub = twitch.update_eventsub(broadcaster, defaults.REWARD_ID)
     updated_broadcaster = Broadcaster.query.filter(Broadcaster.id == defaults.BROADCASTER_ID).one()
 
-    mock_delete_eventsub.assert_called_once_with(defaults.EVENTSUB_ID)
+    mock_delete_eventsub.assert_not_called()
     mock_create_eventsub.assert_called_once_with(broadcaster, defaults.REWARD_ID)
     assert matching_eventsub == new_eventsub_id
     assert updated_broadcaster.eventsub_id == new_eventsub_id
+
+
+def test_update_eventsub_duplicates(app, init_db, mocker):
+    """Test only one matching eventsub is kept, preferring the one in the database, and that already
+    fetched eventsubs are used instead of fetching them again."""
+    database = init_db(app)
+
+    first_eventsub = copy.deepcopy(defaults.EVENTSUB_JSON["data"][0])
+    first_eventsub["id"] = "18462e51-08b5-4a54-bbe8-b818a48d7a0c"
+    db_eventsub = copy.deepcopy(defaults.EVENTSUB_JSON["data"][0])
+
+    mock_get_eventsubs = mocker.patch("verifiedfirst.twitch.get_eventsubs")
+    mock_create_eventsub = mocker.patch("verifiedfirst.twitch.create_eventsub")
+    mock_delete_eventsub = mocker.patch("verifiedfirst.twitch.delete_eventsub")
+
+    broadcaster = Broadcaster(
+        id=defaults.BROADCASTER_ID,
+        name=defaults.BROADCASTER_NAME,
+        access_token="aaaaaaaaaaaaaaaaaaaaaaaa",
+        refresh_token="bbbbbbbbbbbbbbbbbbbbbbbb",
+        eventsub_id=defaults.EVENTSUB_ID,
+    )
+    database.session.add(broadcaster)
+    database.session.commit()
+
+    matching_eventsub = twitch.update_eventsub(
+        broadcaster, defaults.REWARD_ID, [first_eventsub, db_eventsub]
+    )
+
+    mock_get_eventsubs.assert_not_called()
+    mock_create_eventsub.assert_not_called()
+    mock_delete_eventsub.assert_called_once_with(first_eventsub["id"])
+    assert matching_eventsub == defaults.EVENTSUB_ID
+
+    # with neither in the database, the first one is kept and the database is updated
+    mock_delete_eventsub.reset_mock()
+    broadcaster.eventsub_id = None
+    database.session.commit()
+
+    matching_eventsub = twitch.update_eventsub(
+        broadcaster, defaults.REWARD_ID, [first_eventsub, db_eventsub]
+    )
+    updated_broadcaster = Broadcaster.query.filter(Broadcaster.id == defaults.BROADCASTER_ID).one()
+
+    mock_delete_eventsub.assert_called_once_with(defaults.EVENTSUB_ID)
+    assert matching_eventsub == first_eventsub["id"]
+    assert updated_broadcaster.eventsub_id == first_eventsub["id"]
 
 
 def test_get_users_by_login(app, requests_mock):  # pylint: disable=unused-argument

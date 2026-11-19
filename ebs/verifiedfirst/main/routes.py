@@ -1,14 +1,23 @@
 """Main routes."""
 
 from datetime import datetime
+from functools import partial
+from typing import Any
 
-from flask import Blueprint, Response, abort, jsonify, make_response, request, current_app
+from flask import Blueprint, Flask, Response, abort, jsonify, make_response, request, current_app
 from markupsafe import escape
 from requests import RequestException
+from sqlalchemy.exc import SQLAlchemyError
 
 from verifiedfirst import twitch, verify
+from verifiedfirst.database import db
+from verifiedfirst.models.broadcasters import Broadcaster
 
 bp = Blueprint("main", __name__)
+
+# eventsub revocation reasons where creating a new eventsub is expected to work. version_removed
+# isn't one, as create_eventsub always creates the version twitch has just removed.
+RECOVERABLE_REVOCATION_REASONS = ("notification_failures_exceeded",)
 
 
 @bp.route("/firsts", methods=["GET"])
@@ -164,12 +173,124 @@ def eventsub() -> Response:
         return make_response(jsonify(first))
 
     if message_type == "revocation":
-        eventsub_id = request_data["subscription"]["id"]
-        broadcaster_id = request_data["subscription"]["condition"]["broadcaster_user_id"]
-        current_app.logger.info(
-            "revoking eventsub for broadcaster_id=%s eventsub_id=%s", broadcaster_id, eventsub_id
-        )
-        twitch.delete_eventsub(eventsub_id)
-        return make_response(jsonify({"eventsub_id": eventsub_id}))
+        subscription = request_data["subscription"]
+        response = make_response(jsonify({"eventsub_id": subscription["id"]}))
+        if handle_revocation(subscription):
+            # recreating takes several twitch api calls, so do it after the response is sent to
+            # avoid twitch timing out waiting for a response to the revocation message
+            app = current_app._get_current_object()  # pylint: disable=protected-access
+            response.call_on_close(partial(recreate_eventsub, app, subscription))
+        return response
 
     abort(401, "could not process eventsub")
+
+
+def handle_revocation(subscription: dict[str, Any]) -> bool:
+    """Clean up after twitch revokes an eventsub, and work out if it should be recreated.
+
+    Errors are logged rather than raised, as twitch still needs a 2xx response to the revocation
+    message.
+
+    :param subscription: the revoked subscription from the eventsub revocation message
+    :return: True if the eventsub should be recreated with recreate_eventsub
+    """
+    eventsub_id = subscription["id"]
+    try:
+        twitch.delete_eventsub(eventsub_id)
+    except RequestException as exp:
+        current_app.logger.warning("could not delete revoked eventsub_id=%s: %s", eventsub_id, exp)
+
+    reason = subscription.get("status")
+    condition = subscription.get("condition") or {}
+    reward_id = condition.get("reward_id")
+    current_app.logger.warning(
+        "eventsub revoked for broadcaster_id=%s eventsub_id=%s reward_id=%s reason=%s",
+        condition.get("broadcaster_user_id"),
+        eventsub_id,
+        reward_id,
+        reason,
+    )
+
+    broadcaster = get_revoked_broadcaster(subscription)
+    if broadcaster is None:
+        return False
+
+    if reason in RECOVERABLE_REVOCATION_REASONS:
+        return True
+
+    # e.g. authorization_revoked or user_removed, recreating the eventsub would fail
+    current_app.logger.warning(
+        "not recreating eventsub for broadcaster_id=%s reason=%s", broadcaster.id, reason
+    )
+    broadcaster.eventsub_id = None
+    try:
+        db.session.commit()
+    except SQLAlchemyError as exp:
+        current_app.logger.error(
+            "could not clear eventsub_id for broadcaster_id=%s: %s", broadcaster.id, exp
+        )
+        db.session.rollback()
+    return False
+
+
+def get_revoked_broadcaster(subscription: dict[str, Any]) -> Broadcaster | None:
+    """Get the broadcaster a revoked eventsub belongs to, if it is their current eventsub.
+
+    Revocations of stale eventsubs (or ones created by another deployment sharing the client id)
+    shouldn't change anything.
+
+    :param subscription: the revoked subscription from the eventsub revocation message
+    :return: the broadcaster, or None if the eventsub isn't the current one for any broadcaster
+    """
+    eventsub_id = subscription["id"]
+    condition = subscription.get("condition") or {}
+    try:
+        broadcaster_id = int(condition["broadcaster_user_id"])
+    except (KeyError, TypeError, ValueError):
+        current_app.logger.error("revoked eventsub_id=%s has no broadcaster_user_id", eventsub_id)
+        return None
+
+    broadcaster = twitch.get_broadcaster(broadcaster_id)
+    if (
+        broadcaster is None
+        or eventsub_id != broadcaster.eventsub_id
+        or condition.get("reward_id") != broadcaster.reward_id
+    ):
+        current_app.logger.info(
+            "revoked eventsub_id=%s is not the current eventsub for broadcaster_id=%s",
+            eventsub_id,
+            broadcaster_id,
+        )
+        return None
+    return broadcaster
+
+
+def recreate_eventsub(app: Flask, subscription: dict[str, Any]) -> None:
+    """Recreate a revoked eventsub.
+
+    This runs after the response to the revocation message has been sent, so it needs its own app
+    context.
+
+    :param app: the flask app
+    :param subscription: the revoked subscription from the eventsub revocation message
+    """
+    with app.app_context():
+        # check again in case the broadcaster changed their config in the meantime
+        broadcaster = get_revoked_broadcaster(subscription)
+        if broadcaster is None:
+            return
+
+        current_app.logger.info("recreating eventsub for broadcaster_id=%s", broadcaster.id)
+        try:
+            new_eventsub_id = twitch.update_eventsub(broadcaster, broadcaster.reward_id)
+        except (RequestException, KeyError, TypeError, SQLAlchemyError) as exp:
+            current_app.logger.error(
+                "could not recreate eventsub for broadcaster_id=%s: %s", broadcaster.id, exp
+            )
+            db.session.rollback()
+            return
+        current_app.logger.info(
+            "recreated eventsub for broadcaster_id=%s eventsub_id=%s",
+            broadcaster.id,
+            new_eventsub_id,
+        )

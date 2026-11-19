@@ -83,3 +83,18 @@ def test_create_app_config_errors(testconfig, caplog):
     assert caplog_messages == [
         "error setting log level: Unknown level: 'TESTING'",
     ]
+
+
+# pylint: disable=missing-class-docstring,too-few-public-methods
+def test_create_app_postgres_driver(testconfig):
+    """Test create_app uses the installed psycopg (v3) driver for postgresql:// URIs."""
+
+    class PostgresConfig(testconfig):
+        SQLALCHEMY_DATABASE_URI = "postgresql://postgres:secret@localhost/postgres"
+
+    app = create_app(PostgresConfig)
+
+    with app.app_context():
+        from verifiedfirst.database import db  # pylint: disable=import-outside-toplevel
+
+        assert db.engine.dialect.driver == "psycopg"

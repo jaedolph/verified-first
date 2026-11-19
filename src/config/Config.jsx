@@ -151,6 +151,11 @@ export default function Config() {
 
   const showConfigForm = isAuthed && rewards && !rewardsLoading;
 
+  // Prefer the reward the EBS says it is listening for. The Twitch config is shared between the
+  // released and testing versions of the extension, which each use a different EBS.
+  const selectedRewardId =
+    rewards?.find((reward) => reward.configured)?.id ?? configuredRewardId ?? "";
+
   return (
     <div id="config-page">
       <h3>
@@ -253,7 +258,7 @@ export default function Config() {
               <select
                 name="reward_select"
                 id="reward_select"
-                defaultValue={configuredRewardId ?? ""}
+                defaultValue={selectedRewardId}
               >
                 {rewards.map((reward) => (
                   <option key={reward.id} value={reward.id}>

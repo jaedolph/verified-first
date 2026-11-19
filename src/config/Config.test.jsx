@@ -35,9 +35,9 @@ describe("Config", () => {
   });
 
   /** Simulate Twitch SDK firing onAuthorized */
-  async function authorize({ authed = true } = {}) {
+  async function authorize({ authed = true, rewards = MOCK_REWARDS } = {}) {
     checkAuth.mockResolvedValue(authed);
-    if (authed) fetchRewards.mockResolvedValue(MOCK_REWARDS);
+    if (authed) fetchRewards.mockResolvedValue(rewards);
     await act(async () => {
       onAuthorizedCallback({ token: "test-token", clientId: "client-abc" });
     });
@@ -130,6 +130,39 @@ describe("Config", () => {
 
     await waitFor(() => {
       expect(screen.getByDisplayValue("Saved Title")).toBeInTheDocument();
+    });
+  });
+
+  it("selects the reward the EBS is configured for over the Twitch config", async () => {
+    // the Twitch config is shared with the other version of the extension, so it can be stale
+    window.Twitch.ext.configuration.broadcaster = {
+      content: JSON.stringify({ rewardId: "reward-1" }),
+    };
+    render(<Config />);
+    await act(async () => { onChangedCallback(); });
+    await authorize({
+      authed: true,
+      rewards: [
+        { id: "reward-1", title: "First", configured: false },
+        { id: "reward-2", title: "Hydrate", configured: true },
+      ],
+    });
+
+    await waitFor(() => {
+      expect(screen.getByRole("combobox", { name: /reward/i })).toHaveValue("reward-2");
+    });
+  });
+
+  it("falls back to the Twitch config reward if the EBS has none configured", async () => {
+    window.Twitch.ext.configuration.broadcaster = {
+      content: JSON.stringify({ rewardId: "reward-2" }),
+    };
+    render(<Config />);
+    await act(async () => { onChangedCallback(); });
+    await authorize({ authed: true });
+
+    await waitFor(() => {
+      expect(screen.getByRole("combobox", { name: /reward/i })).toHaveValue("reward-2");
     });
   });
 

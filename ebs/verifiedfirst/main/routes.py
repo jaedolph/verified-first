@@ -128,6 +128,11 @@ def rewards(channel_id: int, role: str) -> Response:
     except RequestException:
         abort(500, "failed to get rewards for broadcaster")
 
+    # mark the reward this instance is listening for. the twitch extension config is shared
+    # between the released and testing versions of the extension, so it can't be trusted for this
+    for reward in rewards_dict:
+        reward["configured"] = reward.get("id") == broadcaster.reward_id
+
     return make_response(jsonify(rewards_dict))
 
 

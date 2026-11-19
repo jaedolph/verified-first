@@ -100,9 +100,12 @@ def eventsub_create(channel_id: int, role: str) -> Response:
     if broadcaster is None:
         abort(403, "broadcaster is not authed yet")
 
-    reward_id = twitch.update_reward(broadcaster, reward_id)
-
+    # only store the reward once the eventsub exists, so /rewards never reports a reward this
+    # instance isn't listening for. if this fails the stored reward is unchanged, and
+    # reconcile_eventsubs recreates the eventsub for it if the old one was already deleted
     eventsub_id = twitch.update_eventsub(broadcaster, reward_id)
+
+    twitch.update_reward(broadcaster, reward_id)
 
     return make_response(jsonify({"eventsub_id": eventsub_id}))
 

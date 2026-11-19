@@ -118,25 +118,33 @@ export default function Config() {
 
     if (!rewardId) {
       setSubmitStatus("error");
-      setSubmitError("No reward selected. Try refreshing the page.");
+      setSubmitError("No reward selected. Please select your reward.");
       return;
     }
 
     setSubmitStatus("loading");
     setSubmitError(null);
 
-    // Save title and time range to Twitch broadcaster config storage. The reward isn't saved here,
-    // as this config is shared between the released and testing versions of the extension, and
-    // each has its own EBS that stores the reward. Older versions saved it, so drop it.
+    // Save the title, time range and leaderboard style to Twitch broadcaster config storage.
+    // The reward isn't saved here, as this config is shared between the released and testing
+    // versions of the extension, and each has its own EBS that stores the reward. Any rewardId
+    // already in the config is left alone, as older released versions still read it.
     const twitch = window.Twitch.ext;
     const updatedConfig = { ...configRef.current, title, timeRange, leaderboardStyle };
-    delete updatedConfig.rewardId;
     twitch.configuration.set("broadcaster", "1", JSON.stringify(updatedConfig));
     configRef.current = updatedConfig;
+    // keep the form defaults in sync in case the form is remounted (e.g. when rewards reload)
+    setConfiguredTitle(title);
+    setConfiguredTimeRange(timeRange);
+    setConfiguredStyle(leaderboardStyle);
 
     // Create/update the EventSub subscription for the selected reward
     try {
       await createEventsub(authRef.current, rewardId);
+      // the EBS is now listening for this reward
+      setRewards((current) =>
+        current?.map((reward) => ({ ...reward, configured: reward.id === rewardId })),
+      );
       setSubmitStatus("success");
     } catch (e) {
       console.error("Failed to create eventsub:", e);
@@ -147,7 +155,9 @@ export default function Config() {
 
   const showConfigForm = isAuthed && rewards && !rewardsLoading;
 
-  // Preselect the reward the EBS says it is listening for
+  // Preselect the reward the EBS says it is listening for. If there isn't one (e.g. an older EBS,
+  // or the reward was deleted on Twitch) the placeholder is selected, so the broadcaster has to
+  // choose a reward rather than the first one being saved without them noticing
   const selectedRewardId = rewards?.find((reward) => reward.configured)?.id ?? "";
 
   return (
@@ -254,6 +264,9 @@ export default function Config() {
                 id="reward_select"
                 defaultValue={selectedRewardId}
               >
+                <option value="" disabled>
+                  Select a reward&hellip;
+                </option>
                 {rewards.map((reward) => (
                   <option key={reward.id} value={reward.id}>
                     {reward.title}

@@ -58,9 +58,21 @@ jobs:
     runs-on: [self-hosted, verifiedfirst-test]
     needs: push_to_registry
     steps:
-      - name: Pull, restart and migrate verifiedfirst-test
+      - name: Pull, migrate and restart verifiedfirst-test
+        shell: bash
         run: |
           podman pull docker.io/jaedolph/verifiedfirst:latest
+          # migrate with the new image before restarting, so the new code never runs against the
+          # old schema. The migration runs in a one-off container that shares the running
+          # container's data volume and VFIRST_ settings. The migration scripts are idempotent,
+          # so they are safe to run on every deploy
+          env_vars=$(podman container inspect verifiedfirst-test \
+            --format '{{range .Config.Env}}{{println .}}{{end}}' | grep '^VFIRST_')
+          for migration in migrate_user_ids migrate_profile_images; do
+            podman run --rm \
+              --volumes-from verifiedfirst-test \
+              --env-file <(printf '%s\n' "$env_vars") \
+              docker.io/jaedolph/verifiedfirst:latest \
+              python -m "scripts.$migration"
+          done
           XDG_RUNTIME_DIR=/run/user/2001 systemctl --user restart container-verifiedfirst-test.service
-          # the migration scripts are idempotent, so they are safe to run on every deploy
-          XDG_RUNTIME_DIR=/run/user/2001 podman exec verifiedfirst-test python -m scripts.migrate_profile_images

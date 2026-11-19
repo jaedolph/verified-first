@@ -231,6 +231,72 @@ describe("Panel", () => {
     expect(screen.getByText("SA")).toBeInTheDocument();
   });
 
+  it("tries a new profile picture url after an earlier one failed to load", async () => {
+    fetchFirsts.mockResolvedValue({ saundo__: 69 });
+    fetchAvatars.mockResolvedValue({ saundo__: "https://example.com/broken.png" });
+    render(<Panel />);
+    await applyConfig({ leaderboardStyle: "cards" });
+    await authorize();
+
+    const image = await waitFor(() => {
+      const img = document.querySelector("img.firsts-avatar");
+      expect(img).toBeInTheDocument();
+      return img;
+    });
+    fireEvent.error(image);
+    expect(screen.getByText("SA")).toBeInTheDocument();
+
+    // each fetch returns a new object, which is what triggers the profile picture refetch
+    fetchFirsts.mockResolvedValue({ saundo__: 69 });
+    fetchAvatars.mockResolvedValue({ saundo__: "https://example.com/fixed.png" });
+    fireEvent.click(screen.getByRole("button", { name: "Month" }));
+
+    await waitFor(() => {
+      expect(document.querySelector("img.firsts-avatar")).toHaveAttribute(
+        "src",
+        "https://example.com/fixed.png",
+      );
+    });
+  });
+
+  it("refetches profile pictures when the leaderboard reloads", async () => {
+    fetchFirsts.mockResolvedValue({ saundo__: 69 });
+    fetchAvatars.mockResolvedValue({ saundo__: "https://example.com/saundo.png" });
+    render(<Panel />);
+    await applyConfig({ leaderboardStyle: "cards" });
+    await authorize();
+
+    await waitFor(() => {
+      expect(document.querySelectorAll("img.firsts-avatar")).toHaveLength(1);
+    });
+    expect(fetchAvatars).toHaveBeenCalledTimes(1);
+
+    // a new user gets their first while the panel is open
+    fetchFirsts.mockResolvedValue({ saundo__: 69, newuser: 1 });
+    fetchAvatars.mockResolvedValue({
+      saundo__: "https://example.com/saundo.png",
+      newuser: "https://example.com/newuser.png",
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Month" }));
+
+    await waitFor(() => {
+      expect(document.querySelectorAll("img.firsts-avatar")).toHaveLength(2);
+    });
+    expect(fetchAvatars).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not fetch profile pictures if the channel has no firsts", async () => {
+    fetchFirsts.mockResolvedValue(null);
+    render(<Panel />);
+    await applyConfig({ leaderboardStyle: "cards" });
+    await authorize();
+
+    await waitFor(() => {
+      expect(fetchFirsts).toHaveBeenCalled();
+    });
+    expect(fetchAvatars).not.toHaveBeenCalled();
+  });
+
   it("still shows the leaderboard if profile pictures can't be fetched", async () => {
     vi.spyOn(console, "error").mockImplementation(() => {});
     fetchFirsts.mockResolvedValue({ saundo__: 69 });

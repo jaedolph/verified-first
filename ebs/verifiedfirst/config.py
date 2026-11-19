@@ -27,3 +27,9 @@ class Config:
     REQUEST_TIMEOUT: int = int((os.environ.get(f"{PREFIX}REQUEST_TIMEOUT") or 5))
     # how long (in seconds) a cached profile image url is used before it is refreshed from twitch
     PROFILE_IMAGE_MAX_AGE: int = int((os.environ.get(f"{PREFIX}PROFILE_IMAGE_MAX_AGE") or 86400))
+    # how long (in seconds) to wait before retrying after profile images fail to refresh
+    PROFILE_IMAGE_RETRY_DELAY: int = int(
+        (os.environ.get(f"{PREFIX}PROFILE_IMAGE_RETRY_DELAY") or 300)
+    )
+    # the PROFILE_IMAGE_RETRY_AFTER time will be set automatically when a refresh fails
+    PROFILE_IMAGE_RETRY_AFTER = None

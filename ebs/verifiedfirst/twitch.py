@@ -7,7 +7,7 @@ from datetime import datetime, timedelta, UTC
 from flask import current_app
 from requests import Request, Response, Session, codes, post
 from requests.exceptions import RequestException
-from sqlalchemy.exc import NoResultFound
+from sqlalchemy.exc import NoResultFound, SQLAlchemyError
 
 from verifiedfirst.models.broadcasters import Broadcaster
 from verifiedfirst.models.firsts import First
@@ -500,85 +500,82 @@ def update_reward(broadcaster: Broadcaster, reward_id: str) -> str:
     return reward_id
 
 
+# Twitch /users endpoint accepts up to 100 logins or ids per request
+USERS_BATCH_SIZE = 100
+
+
+def lookup_users(param: str, values: List[str] | List[int]) -> List[dict[str, Any]]:
+    """Look up Twitch users by login name or id, in batches of USERS_BATCH_SIZE.
+
+    :param param: query parameter to look users up by, either "login" or "id"
+    :param values: login names or ids to look up
+    :raises RequestException: if any request fails
+    :return: user data returned by the Twitch API for each user that was found
+    """
+    users: List[dict[str, Any]] = []
+    for i in range(0, len(values), USERS_BATCH_SIZE):
+        batch = values[i : i + USERS_BATCH_SIZE]
+        req = Request(
+            method="GET",
+            url=f"{current_app.config['TWITCH_API_BASEURL']}/users",
+            headers={"Client-ID": current_app.config["CLIENT_ID"]},
+            params=[(param, value) for value in batch],
+        )
+        try:
+            resp = request_twitch_api_app(req)
+            batch_users = resp.json()["data"]
+            assert isinstance(batch_users, list)
+        except (RequestException, KeyError, AssertionError) as exp:
+            raise RequestException(f"could not look up users by {param}") from exp
+        users.extend(batch_users)
+
+    return users
+
+
 def get_users_by_login(logins: List[str]) -> dict[str, int]:
     """Look up Twitch users by login name and return a mapping of login -> user_id.
 
-    The Twitch API accepts up to 100 logins per request. Logins not found in the API response (e.g.
-    because the username no longer exists) are omitted from the result.
+    Logins not found in the API response (e.g. because the username no longer exists) are omitted
+    from the result.
 
     :param logins: list of Twitch login names to look up
     :raises RequestException: if the request fails
     :return: dict mapping login name to numeric Twitch user id
     """
-    login_to_id: dict[str, int] = {}
-
-    # Twitch /users endpoint accepts up to 100 logins per request
-    batch_size = 100
-    for i in range(0, len(logins), batch_size):
-        batch = logins[i : i + batch_size]
-        req = Request(
-            method="GET",
-            url=f"{current_app.config['TWITCH_API_BASEURL']}/users",
-            headers={"Client-ID": current_app.config["CLIENT_ID"]},
-            params=[("login", login) for login in batch],
-        )
-        try:
-            resp = request_twitch_api_app(req)
-            users = resp.json()["data"]
-            assert isinstance(users, list)
-        except (RequestException, KeyError, AssertionError) as exp:
-            raise RequestException("could not look up users by login") from exp
-
-        for user in users:
-            login_to_id[user["login"]] = int(user["id"])
-
-    return login_to_id
+    return {user["login"]: int(user["id"]) for user in lookup_users("login", logins)}
 
 
 def get_users_by_id(user_ids: List[int]) -> dict[int, dict[str, Any]]:
     """Look up Twitch users by id and return a mapping of user_id -> user data.
 
-    The Twitch API accepts up to 100 ids per request. Ids not found in the API response (e.g.
-    because the account has been deleted or suspended) are omitted from the result.
+    Ids not found in the API response (e.g. because the account has been deleted or suspended) are
+    omitted from the result.
 
     :param user_ids: list of numeric Twitch user ids to look up
     :raises RequestException: if the request fails
     :return: dict mapping numeric Twitch user id to the user data returned by the Twitch API
     """
-    id_to_user: dict[int, dict[str, Any]] = {}
-
-    # Twitch /users endpoint accepts up to 100 ids per request
-    batch_size = 100
-    for i in range(0, len(user_ids), batch_size):
-        batch = user_ids[i : i + batch_size]
-        req = Request(
-            method="GET",
-            url=f"{current_app.config['TWITCH_API_BASEURL']}/users",
-            headers={"Client-ID": current_app.config["CLIENT_ID"]},
-            params=[("id", user_id) for user_id in batch],
-        )
-        try:
-            resp = request_twitch_api_app(req)
-            users = resp.json()["data"]
-            assert isinstance(users, list)
-        except (RequestException, KeyError, AssertionError) as exp:
-            raise RequestException("could not look up users by id") from exp
-
-        for user in users:
-            id_to_user[int(user["id"])] = user
-
-    return id_to_user
+    return {int(user["id"]): user for user in lookup_users("id", user_ids)}
 
 
 def refresh_profile_images(users: List[User]) -> None:
     """Refresh the cached profile image url for any users whose cached value is missing or stale.
 
-    If the Twitch API can't be reached the existing cached values are kept, so an outage only
-    results in out of date (or missing) images rather than an error.
+    This is called while handling viewer requests, so to keep those requests fast at most one batch
+    of users (a single Twitch API request) is refreshed per call, oldest first. Any remaining stale
+    users are refreshed by later calls.
+
+    If the Twitch API can't be reached the existing cached values are kept, and no further refreshes
+    are attempted for PROFILE_IMAGE_RETRY_DELAY seconds, so an outage only results in out of date
+    (or missing) images rather than an error or slow requests.
 
     :param users: users to refresh profile images for
     """
     now = datetime.now(UTC).replace(tzinfo=None)
+    retry_after = current_app.config["PROFILE_IMAGE_RETRY_AFTER"]
+    if retry_after is not None and now < retry_after:
+        return
+
     max_age = timedelta(seconds=current_app.config["PROFILE_IMAGE_MAX_AGE"])
     stale_users = [
         user
@@ -588,18 +585,30 @@ def refresh_profile_images(users: List[User]) -> None:
     if not stale_users:
         return
 
+    stale_users.sort(key=lambda user: user.profile_image_updated or datetime.min)
+    stale_users = stale_users[:USERS_BATCH_SIZE]
+
     try:
         twitch_users = get_users_by_id([user.id for user in stale_users])
     except RequestException as exp:
+        current_app.config["PROFILE_IMAGE_RETRY_AFTER"] = now + timedelta(
+            seconds=current_app.config["PROFILE_IMAGE_RETRY_DELAY"]
+        )
         current_app.logger.warning("could not refresh profile images: %s", exp)
         return
+    current_app.config["PROFILE_IMAGE_RETRY_AFTER"] = None
 
     for user in stale_users:
         # users missing from the response no longer exist on twitch, so stop showing their image
         twitch_user = twitch_users.get(user.id, {})
         user.profile_image_url = twitch_user.get("profile_image_url") or None
         user.profile_image_updated = now
-    db.session.commit()
+    try:
+        db.session.commit()
+    except SQLAlchemyError as exp:
+        # e.g. the database is locked by another worker refreshing the same users
+        db.session.rollback()
+        current_app.logger.warning("could not save refreshed profile images: %s", exp)
 
 
 def get_avatars(broadcaster: Broadcaster) -> dict[str, str]:

@@ -88,15 +88,16 @@ const MAX_AVATARS = 3;
  * (or if the image fails to load) a colored badge with their initials.
  */
 function Avatar({ username, url }) {
-  const [failed, setFailed] = useState(false);
+  // track which url failed, so a new url for the same user is still tried
+  const [failedUrl, setFailedUrl] = useState(null);
 
-  if (url && !failed) {
+  if (url && url !== failedUrl) {
     return (
       <img
         className="firsts-avatar firsts-avatar--image"
         src={url}
         alt=""
-        onError={() => setFailed(true)}
+        onError={() => setFailedUrl(url)}
       />
     );
   }
@@ -190,14 +191,20 @@ export default function Panel() {
     });
   }, [loadFirsts]);
 
-  // Profile pictures are only shown in the cards style, so only fetch them when it's in use. They
-  // cover every user on the channel, so one fetch serves all time ranges.
+  // Profile pictures are only shown in the cards style, so only fetch them when it's in use.
+  // Refetch whenever the leaderboard reloads, so users with new firsts get their picture too.
   useEffect(() => {
-    if (leaderboardStyle !== "cards" || !authorized) return;
+    if (leaderboardStyle !== "cards" || !authorized || !firsts) return;
+    let cancelled = false;
     fetchAvatars(authRef.current)
-      .then(setAvatars)
+      .then((result) => {
+        if (!cancelled) setAvatars(result);
+      })
       .catch((e) => console.error("could not get avatars", e));
-  }, [leaderboardStyle, authorized]);
+    return () => {
+      cancelled = true;
+    };
+  }, [leaderboardStyle, authorized, firsts]);
 
   const handleRangeClick = (range) => {
     if (range === "custom") {

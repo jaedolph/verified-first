@@ -2,7 +2,7 @@
 
 from collections import defaultdict
 from typing import Any, List, Tuple
-from datetime import datetime
+from datetime import datetime, timedelta, UTC
 
 from flask import current_app
 from requests import Request, Response, Session, codes, post
@@ -535,6 +535,92 @@ def get_users_by_login(logins: List[str]) -> dict[str, int]:
     return login_to_id
 
 
+def get_users_by_id(user_ids: List[int]) -> dict[int, dict[str, Any]]:
+    """Look up Twitch users by id and return a mapping of user_id -> user data.
+
+    The Twitch API accepts up to 100 ids per request. Ids not found in the API response (e.g.
+    because the account has been deleted or suspended) are omitted from the result.
+
+    :param user_ids: list of numeric Twitch user ids to look up
+    :raises RequestException: if the request fails
+    :return: dict mapping numeric Twitch user id to the user data returned by the Twitch API
+    """
+    id_to_user: dict[int, dict[str, Any]] = {}
+
+    # Twitch /users endpoint accepts up to 100 ids per request
+    batch_size = 100
+    for i in range(0, len(user_ids), batch_size):
+        batch = user_ids[i : i + batch_size]
+        req = Request(
+            method="GET",
+            url=f"{current_app.config['TWITCH_API_BASEURL']}/users",
+            headers={"Client-ID": current_app.config["CLIENT_ID"]},
+            params=[("id", user_id) for user_id in batch],
+        )
+        try:
+            resp = request_twitch_api_app(req)
+            users = resp.json()["data"]
+            assert isinstance(users, list)
+        except (RequestException, KeyError, AssertionError) as exp:
+            raise RequestException("could not look up users by id") from exp
+
+        for user in users:
+            id_to_user[int(user["id"])] = user
+
+    return id_to_user
+
+
+def refresh_profile_images(users: List[User]) -> None:
+    """Refresh the cached profile image url for any users whose cached value is missing or stale.
+
+    If the Twitch API can't be reached the existing cached values are kept, so an outage only
+    results in out of date (or missing) images rather than an error.
+
+    :param users: users to refresh profile images for
+    """
+    now = datetime.now(UTC).replace(tzinfo=None)
+    max_age = timedelta(seconds=current_app.config["PROFILE_IMAGE_MAX_AGE"])
+    stale_users = [
+        user
+        for user in users
+        if user.profile_image_updated is None or now - user.profile_image_updated > max_age
+    ]
+    if not stale_users:
+        return
+
+    try:
+        twitch_users = get_users_by_id([user.id for user in stale_users])
+    except RequestException as exp:
+        current_app.logger.warning("could not refresh profile images: %s", exp)
+        return
+
+    for user in stale_users:
+        # users missing from the response no longer exist on twitch, so stop showing their image
+        twitch_user = twitch_users.get(user.id, {})
+        user.profile_image_url = twitch_user.get("profile_image_url") or None
+        user.profile_image_updated = now
+    db.session.commit()
+
+
+def get_avatars(broadcaster: Broadcaster) -> dict[str, str]:
+    """Get the profile image url of each user that has a "first" for a specific broadcaster.
+
+    Legacy "firsts" without a user id can't be looked up, so those users are omitted.
+
+    :param broadcaster: broadcaster to get avatars for
+    :return: dictionary of profile image urls by user e.g {"user1": "https://..."}
+    """
+    users = (
+        User.query.join(First, First.user_id == User.id)
+        .filter(First.broadcaster_id == broadcaster.id)
+        .distinct()
+        .all()
+    )
+    refresh_profile_images(users)
+
+    return {user.name: user.profile_image_url for user in users if user.profile_image_url}
+
+
 def upsert_user(user_id: int, user_name: str) -> User:
     """Insert or update a user in the User cache table.
 
@@ -542,8 +628,6 @@ def upsert_user(user_id: int, user_name: str) -> User:
     :param user_name: current Twitch login name for the user
     :return: User object
     """
-    from datetime import UTC  # pylint: disable=import-outside-toplevel
-
     user = db.session.get(User, user_id)
     if user is None:
         user = User(id=user_id, name=user_name)

@@ -41,12 +41,16 @@ EVENTSUB_ID = "26b1c993-bfcf-44d9-b876-379dacafe75a"
 REWARD_ID = "536b13c5-8f49-49b9-81e1-18e52b028919"
 TEST_USER_NAME = "testuser"
 TEST_USER_ID = 11223344
+PROFILE_IMAGE_URL = (
+    "https://static-cdn.jtvnw.net/jtv_user_pictures/testuser-profile_image-300x300.png"
+)
 USERS_LOOKUP_JSON = {
     "data": [
         {
             "id": str(TEST_USER_ID),
             "login": TEST_USER_NAME,
             "display_name": TEST_USER_NAME,
+            "profile_image_url": PROFILE_IMAGE_URL,
         }
     ]
 }

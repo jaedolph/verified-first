@@ -92,6 +92,44 @@ def test_firsts_no_firsts(client, mocker):
     assert resp.json == {"error": "could not get firsts"}
 
 
+def test_avatars(client, mocker):
+    """Test the /avatars endpoint works."""
+    avatars = {
+        "user1": "https://example.com/user1.png",
+        "user2": "https://example.com/user2.png",
+    }
+    mock_jwt = mocker.patch("verifiedfirst.verify.verify_jwt")
+    mock_jwt.return_value = (defaults.CHANNEL_ID, "viewer")
+    mock_get_broadcaster = mocker.patch("verifiedfirst.twitch.get_broadcaster")
+    mock_broadcaster = mocker.Mock()
+    mock_get_broadcaster.return_value = mock_broadcaster
+    mock_get_avatars = mocker.patch("verifiedfirst.twitch.get_avatars")
+    mock_get_avatars.return_value = avatars
+
+    resp = client.get(url_for("main.avatars"))
+
+    mock_get_broadcaster.assert_called_with(defaults.CHANNEL_ID)
+    mock_get_avatars.assert_called_with(mock_broadcaster)
+    assert resp.status_code == 200
+    assert resp.json == avatars
+
+
+def test_avatars_no_broadcaster(client, mocker):
+    """Test the /avatars returns a 403 if the broadcaster is not authed."""
+    mock_jwt = mocker.patch("verifiedfirst.verify.verify_jwt")
+    mock_jwt.return_value = (defaults.CHANNEL_ID, "viewer")
+    mock_get_broadcaster = mocker.patch("verifiedfirst.twitch.get_broadcaster")
+    mock_get_broadcaster.return_value = None
+    mock_get_avatars = mocker.patch("verifiedfirst.twitch.get_avatars")
+
+    resp = client.get(url_for("main.avatars"))
+
+    mock_get_broadcaster.assert_called_with(defaults.CHANNEL_ID)
+    mock_get_avatars.assert_not_called()
+    assert resp.status_code == 403
+    assert resp.json == {"error": "broadcaster is not authed yet"}
+
+
 def test_eventsub_create(client, mocker):
     """Test the /eventsub/create endpoint works."""
     mock_jwt = mocker.patch("verifiedfirst.verify.verify_jwt")

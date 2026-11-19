@@ -213,17 +213,21 @@ def test_rewards(client, mocker):
     """Test the /rewards endpoint works."""
     mock_jwt = mocker.patch("verifiedfirst.verify.verify_jwt")
     mock_jwt.return_value = (defaults.CHANNEL_ID, "broadcaster")
+    rewards_json = copy.deepcopy(defaults.REWARDS_JSON["data"])
     mock_broadcaster = mocker.Mock()
+    mock_broadcaster.reward_id = rewards_json[1]["id"]
     mock_get_broadcaster = mocker.patch("verifiedfirst.twitch.get_broadcaster")
     mock_get_broadcaster.return_value = mock_broadcaster
     mock_get_rewards = mocker.patch("verifiedfirst.twitch.get_rewards")
-    rewards_json = defaults.REWARDS_JSON["data"]
-    mock_get_rewards.return_value = rewards_json
+    mock_get_rewards.return_value = copy.deepcopy(rewards_json)
 
     resp = client.get(url_for("main.rewards"))
 
     assert resp.status_code == 200
-    assert resp.json == rewards_json
+    # the reward the broadcaster has configured on this instance is marked
+    assert resp.json == [
+        {**reward, "configured": index == 1} for index, reward in enumerate(rewards_json)
+    ]
 
 
 def test_rewards_not_broadcaster(client, mocker):

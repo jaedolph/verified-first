@@ -1,6 +1,7 @@
 """Migrate the database schema to support caching Twitch profile images.
 
 Applies the following changes to an existing database:
+  - Creates the 'twitch_user' table if it does not exist
   - Adds the nullable 'profile_image_url' column to the 'twitch_user' table if it does not exist
   - Adds the nullable 'profile_image_updated' column to the 'twitch_user' table if it does not exist
 
@@ -28,6 +29,18 @@ NEW_COLUMNS = ["profile_image_url", "profile_image_updated"]
 def migrate() -> None:
     """Apply schema migrations for profile image caching."""
     inspector = inspect(db.engine)
+
+    if not inspector.has_table("first"):
+        # nothing to migrate, init_db creates the full schema
+        logger.info("Database has not been initialized, skipping.")
+        return
+
+    if not inspector.has_table("twitch_user"):
+        # the table is created from the model, so it already has the new columns
+        logger.info("Creating 'twitch_user' table...")
+        User.__table__.create(db.engine)
+        logger.info("'twitch_user' table created.")
+        return
 
     existing_columns = [col["name"] for col in inspector.get_columns("twitch_user")]
     for column in NEW_COLUMNS:

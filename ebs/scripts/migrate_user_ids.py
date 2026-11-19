@@ -28,6 +28,11 @@ def migrate() -> None:
     """Apply schema migrations for user ID tracking."""
     inspector = inspect(db.engine)
 
+    if not inspector.has_table("first"):
+        # nothing to migrate, init_db creates the full schema
+        logger.info("Database has not been initialized, skipping.")
+        return
+
     if not inspector.has_table("twitch_user"):
         logger.info("Creating 'twitch_user' table...")
         User.__table__.create(db.engine)

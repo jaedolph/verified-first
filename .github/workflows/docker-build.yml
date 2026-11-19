@@ -58,7 +58,9 @@ jobs:
     runs-on: [self-hosted, verifiedfirst-test]
     needs: push_to_registry
     steps:
-      - name: Pull and restart verifiedfirst-test
+      - name: Pull, restart and migrate verifiedfirst-test
         run: |
           podman pull docker.io/jaedolph/verifiedfirst:latest
           XDG_RUNTIME_DIR=/run/user/2001 systemctl --user restart container-verifiedfirst-test.service
+          # the migration scripts are idempotent, so they are safe to run on every deploy
+          XDG_RUNTIME_DIR=/run/user/2001 podman exec verifiedfirst-test python -m scripts.migrate_profile_images

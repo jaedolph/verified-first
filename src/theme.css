@@ -213,6 +213,11 @@ blockquote p {
   background: rgb(120, 120, 128);
 }
 
+.firsts-avatar--image {
+  object-fit: cover;
+  background: rgb(120, 120, 128);
+}
+
 .row-detail {
   flex: 1;
   min-width: 0;

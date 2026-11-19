@@ -31,6 +31,22 @@ export async function fetchFirsts(authorization, startTime, endTime) {
 }
 
 /**
+ * Fetch Twitch profile image URLs for each user with a "first" on the channel.
+ * @param {string} authorization - "Bearer <token>"
+ * @returns {Object} - { username: profileImageUrl }
+ */
+export async function fetchAvatars(authorization) {
+  const response = await fetch(extensionUri + "/avatars", {
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: authorization,
+    },
+  });
+  if (!response.ok) throw new Error(await response.text());
+  return await response.json();
+}
+
+/**
  * Check if the broadcaster has connected their Twitch account to the EBS.
  * @param {string} authorization - "Bearer <token>"
  * @returns {boolean}

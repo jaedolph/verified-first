@@ -25,6 +25,8 @@ export default [
       ...reactPlugin.configs.recommended.rules,
       ...reactHooks.configs.recommended.rules,
       "react/react-in-jsx-scope": "off",
+      // React 19 no longer checks propTypes, so declaring them has no effect
+      "react/prop-types": "off",
     },
   },
   prettierConfig,

@@ -3,12 +3,13 @@
 # pylint: disable=too-many-lines
 
 import copy
-from datetime import datetime
+from datetime import datetime, timedelta
 from urllib.parse import quote
 
 import pytest
 from requests import Request
 from requests.exceptions import RequestException
+from sqlalchemy.exc import OperationalError
 
 from verifiedfirst import twitch
 from verifiedfirst.models.broadcasters import Broadcaster
@@ -996,6 +997,88 @@ def test_refresh_profile_images_api_error(app, init_db, mocker, caplog):
     assert user.profile_image_url == defaults.PROFILE_IMAGE_URL
     assert user.profile_image_updated == datetime(1999, 12, 30)
     assert "could not refresh profile images" in caplog.text
+
+
+def test_refresh_profile_images_retry_delay(app, init_db, mocker, patch_current_time):
+    """Test refresh_profile_images waits PROFILE_IMAGE_RETRY_DELAY before retrying a failure."""
+    database = init_db(app)
+    from verifiedfirst.models.users import User  # pylint: disable=import-outside-toplevel
+
+    user = User(id=defaults.TEST_USER_ID, name=defaults.TEST_USER_NAME)
+    database.session.add(user)
+    database.session.commit()
+
+    app.config["PROFILE_IMAGE_RETRY_DELAY"] = 300
+    mock_get_users_by_id = mocker.patch("verifiedfirst.twitch.get_users_by_id")
+    mock_get_users_by_id.side_effect = RequestException("api error")
+
+    with patch_current_time("2000-01-01 00:00:00"):
+        twitch.refresh_profile_images([user])
+    assert mock_get_users_by_id.call_count == 1
+
+    # no retries until the delay has passed
+    with patch_current_time("2000-01-01 00:04:59"):
+        twitch.refresh_profile_images([user])
+    assert mock_get_users_by_id.call_count == 1
+
+    mock_get_users_by_id.side_effect = None
+    mock_get_users_by_id.return_value = {
+        defaults.TEST_USER_ID: {"profile_image_url": defaults.PROFILE_IMAGE_URL}
+    }
+    with patch_current_time("2000-01-01 00:05:01"):
+        twitch.refresh_profile_images([user])
+    assert mock_get_users_by_id.call_count == 2
+    assert user.profile_image_url == defaults.PROFILE_IMAGE_URL
+    assert app.config["PROFILE_IMAGE_RETRY_AFTER"] is None
+
+
+def test_refresh_profile_images_one_batch(app, init_db, mocker, patch_current_time):
+    """Test refresh_profile_images only refreshes the 100 oldest stale users per call."""
+    database = init_db(app)
+    from verifiedfirst.models.users import User  # pylint: disable=import-outside-toplevel
+
+    # users 1-150 are stale with higher ids having older images, user 151 has never been refreshed
+    users = [
+        User(
+            id=i,
+            name=f"user{i}",
+            profile_image_updated=datetime(1999, 1, 1) + timedelta(hours=150 - i),
+        )
+        for i in range(1, 151)
+    ]
+    users.append(User(id=151, name="user151"))
+    database.session.add_all(users)
+    database.session.commit()
+
+    mock_get_users_by_id = mocker.patch("verifiedfirst.twitch.get_users_by_id")
+    mock_get_users_by_id.return_value = {}
+
+    with patch_current_time("2000-01-01"):
+        twitch.refresh_profile_images(users)
+
+    mock_get_users_by_id.assert_called_once_with([151] + list(range(150, 51, -1)))
+
+
+def test_refresh_profile_images_db_error(app, init_db, mocker, caplog):
+    """Test refresh_profile_images doesn't raise if the refreshed images can't be saved."""
+    database = init_db(app)
+    from verifiedfirst.models.users import User  # pylint: disable=import-outside-toplevel
+
+    user = User(id=defaults.TEST_USER_ID, name=defaults.TEST_USER_NAME)
+    database.session.add(user)
+    database.session.commit()
+
+    mocker.patch("verifiedfirst.twitch.get_users_by_id").return_value = {
+        defaults.TEST_USER_ID: {"profile_image_url": defaults.PROFILE_IMAGE_URL}
+    }
+    mocker.patch.object(
+        database.session, "commit", side_effect=OperationalError("", {}, "database is locked")
+    )
+
+    twitch.refresh_profile_images([user])
+
+    assert "could not save refreshed profile images" in caplog.text
+    assert user.profile_image_url is None
 
 
 def test_get_avatars(app, init_db, mocker, requests_mock):

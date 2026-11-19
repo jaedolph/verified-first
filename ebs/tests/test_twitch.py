@@ -872,6 +872,184 @@ def test_get_users_by_login_api_error(app, mocker):  # pylint: disable=unused-ar
         twitch.get_users_by_login([defaults.TEST_USER_NAME])
 
 
+def test_get_users_by_id(app, requests_mock):  # pylint: disable=unused-argument
+    """Test get_users_by_id returns a user_id->user data mapping."""
+    users_url = f"{app.config['TWITCH_API_BASEURL']}/users"
+    mock_request = requests_mock.get(users_url, json=defaults.USERS_LOOKUP_JSON)
+
+    result = twitch.get_users_by_id([defaults.TEST_USER_ID])
+
+    assert result == {defaults.TEST_USER_ID: defaults.USERS_LOOKUP_JSON["data"][0]}
+    assert mock_request.last_request.qs == {"id": [str(defaults.TEST_USER_ID)]}
+
+
+def test_get_users_by_id_batches(app, requests_mock):  # pylint: disable=unused-argument
+    """Test get_users_by_id splits lookups into batches of 100 ids."""
+    users_url = f"{app.config['TWITCH_API_BASEURL']}/users"
+    mock_request = requests_mock.get(users_url, json={"data": []})
+
+    twitch.get_users_by_id(list(range(1, 151)))
+
+    assert mock_request.call_count == 2
+    assert len(mock_request.request_history[0].qs["id"]) == 100
+    assert len(mock_request.request_history[1].qs["id"]) == 50
+
+
+def test_get_users_by_id_api_error(app, mocker):  # pylint: disable=unused-argument
+    """Test get_users_by_id raises RequestException on API failure."""
+    mock_request_twitch_api_app = mocker.patch("verifiedfirst.twitch.request_twitch_api_app")
+    mock_request_twitch_api_app.side_effect = RequestException("api error")
+
+    with pytest.raises(RequestException):
+        twitch.get_users_by_id([defaults.TEST_USER_ID])
+
+
+def test_refresh_profile_images(app, init_db, mocker, patch_current_time):
+    """Test refresh_profile_images only refreshes missing or stale profile images."""
+    database = init_db(app)
+    from verifiedfirst.models.users import User  # pylint: disable=import-outside-toplevel
+
+    new_user = User(id=1001, name="newuser")
+    stale_user = User(
+        id=1002,
+        name="staleuser",
+        profile_image_url="https://example.com/old.png",
+        profile_image_updated=datetime(1999, 12, 30),
+    )
+    fresh_user = User(
+        id=1003,
+        name="freshuser",
+        profile_image_url="https://example.com/fresh.png",
+        profile_image_updated=datetime(1999, 12, 31, 12),
+    )
+    deleted_user = User(
+        id=1004,
+        name="deleteduser",
+        profile_image_url="https://example.com/deleted.png",
+        profile_image_updated=datetime(1999, 12, 30),
+    )
+    database.session.add_all([new_user, stale_user, fresh_user, deleted_user])
+    database.session.commit()
+
+    mock_get_users_by_id = mocker.patch("verifiedfirst.twitch.get_users_by_id")
+    mock_get_users_by_id.return_value = {
+        1001: {"id": "1001", "profile_image_url": "https://example.com/new.png"},
+        1002: {"id": "1002", "profile_image_url": "https://example.com/stale-new.png"},
+    }
+
+    with patch_current_time("2000-01-01"):
+        twitch.refresh_profile_images([new_user, stale_user, fresh_user, deleted_user])
+
+    mock_get_users_by_id.assert_called_once_with([1001, 1002, 1004])
+    assert new_user.profile_image_url == "https://example.com/new.png"
+    assert new_user.profile_image_updated == datetime(2000, 1, 1)
+    assert stale_user.profile_image_url == "https://example.com/stale-new.png"
+    assert stale_user.profile_image_updated == datetime(2000, 1, 1)
+    assert fresh_user.profile_image_url == "https://example.com/fresh.png"
+    assert fresh_user.profile_image_updated == datetime(1999, 12, 31, 12)
+    # users that no longer exist on twitch have their image cleared
+    assert deleted_user.profile_image_url is None
+    assert deleted_user.profile_image_updated == datetime(2000, 1, 1)
+
+
+def test_refresh_profile_images_all_fresh(app, init_db, mocker, patch_current_time):
+    """Test refresh_profile_images doesn't call the twitch api if no images are stale."""
+    database = init_db(app)
+    from verifiedfirst.models.users import User  # pylint: disable=import-outside-toplevel
+
+    user = User(
+        id=defaults.TEST_USER_ID,
+        name=defaults.TEST_USER_NAME,
+        profile_image_url=defaults.PROFILE_IMAGE_URL,
+        profile_image_updated=datetime(1999, 12, 31, 12),
+    )
+    database.session.add(user)
+    database.session.commit()
+
+    mock_get_users_by_id = mocker.patch("verifiedfirst.twitch.get_users_by_id")
+
+    with patch_current_time("2000-01-01"):
+        twitch.refresh_profile_images([user])
+
+    mock_get_users_by_id.assert_not_called()
+
+
+def test_refresh_profile_images_api_error(app, init_db, mocker, caplog):
+    """Test refresh_profile_images keeps cached images if the twitch api fails."""
+    database = init_db(app)
+    from verifiedfirst.models.users import User  # pylint: disable=import-outside-toplevel
+
+    user = User(
+        id=defaults.TEST_USER_ID,
+        name=defaults.TEST_USER_NAME,
+        profile_image_url=defaults.PROFILE_IMAGE_URL,
+        profile_image_updated=datetime(1999, 12, 30),
+    )
+    database.session.add(user)
+    database.session.commit()
+
+    mock_get_users_by_id = mocker.patch("verifiedfirst.twitch.get_users_by_id")
+    mock_get_users_by_id.side_effect = RequestException("api error")
+
+    twitch.refresh_profile_images([user])
+
+    assert user.profile_image_url == defaults.PROFILE_IMAGE_URL
+    assert user.profile_image_updated == datetime(1999, 12, 30)
+    assert "could not refresh profile images" in caplog.text
+
+
+def test_get_avatars(app, init_db, mocker, requests_mock):
+    """Test get_avatars returns profile images for users with firsts on the channel."""
+    database = init_db(app)
+    from verifiedfirst.models.users import User  # pylint: disable=import-outside-toplevel
+
+    broadcaster = mocker.Mock()
+    broadcaster.id = defaults.BROADCASTER_ID
+
+    database.session.add_all(
+        [
+            User(id=defaults.TEST_USER_ID, name=defaults.TEST_USER_NAME),
+            User(id=1002, name="noimageuser"),
+            User(id=1003, name="otherchanneluser"),
+        ]
+    )
+    database.session.add_all(
+        [
+            First(
+                broadcaster_id=defaults.BROADCASTER_ID,
+                name=defaults.TEST_USER_NAME,
+                user_id=defaults.TEST_USER_ID,
+            ),
+            First(
+                broadcaster_id=defaults.BROADCASTER_ID,
+                name=defaults.TEST_USER_NAME,
+                user_id=defaults.TEST_USER_ID,
+            ),
+            First(broadcaster_id=defaults.BROADCASTER_ID, name="noimageuser", user_id=1002),
+            # legacy first with no user id
+            First(broadcaster_id=defaults.BROADCASTER_ID, name="legacyuser"),
+            # first on a different channel
+            First(broadcaster_id=999, name="otherchanneluser", user_id=1003),
+        ]
+    )
+    database.session.commit()
+
+    users_url = f"{app.config['TWITCH_API_BASEURL']}/users"
+    mock_request = requests_mock.get(users_url, json=defaults.USERS_LOOKUP_JSON)
+
+    avatars = twitch.get_avatars(broadcaster)
+
+    assert avatars == {defaults.TEST_USER_NAME: defaults.PROFILE_IMAGE_URL}
+    # each user is only looked up once, and only users with firsts on this channel are looked up
+    assert sorted(mock_request.last_request.qs["id"]) == sorted(
+        [str(defaults.TEST_USER_ID), "1002"]
+    )
+
+    # cached images are returned without calling the twitch api again
+    assert twitch.get_avatars(broadcaster) == avatars
+    assert mock_request.call_count == 1
+
+
 def test_upsert_user_insert(app, init_db):
     """Test upsert_user creates a new User record when none exists."""
     init_db(app)

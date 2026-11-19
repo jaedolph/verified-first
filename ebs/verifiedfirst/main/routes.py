@@ -43,6 +43,26 @@ def firsts(channel_id: int, role: str) -> Response:
     return resp
 
 
+@bp.route("/avatars", methods=["GET"])
+@verify.token_required
+def avatars(channel_id: int, role: str) -> Response:
+    """Get the profile image url of each user that has a "first" on the channel.
+
+    :param channel_id: id of the channel the extension is running on.
+    :param role: role of the user making the request
+    :return: profile image urls by user in json format e.g {"user1": "https://..."}
+    """
+    del role
+    # check broadcaster exists in database
+    broadcaster = twitch.get_broadcaster(channel_id)
+    if broadcaster is None:
+        abort(403, "broadcaster is not authed yet")
+
+    avatars_dict = twitch.get_avatars(broadcaster)
+
+    return make_response(jsonify(avatars_dict))
+
+
 @bp.route("/eventsub/create", methods=["POST"])
 @verify.token_required
 def eventsub_create(channel_id: int, role: str) -> Response:

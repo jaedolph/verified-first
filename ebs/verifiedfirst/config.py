@@ -25,3 +25,5 @@ class Config:
         os.environ.get(f"{PREFIX}TWITCH_API_BASEURL") or "https://api.twitch.tv/helix"
     )
     REQUEST_TIMEOUT: int = int((os.environ.get(f"{PREFIX}REQUEST_TIMEOUT") or 5))
+    # how long (in seconds) a cached profile image url is used before it is refreshed from twitch
+    PROFILE_IMAGE_MAX_AGE: int = int((os.environ.get(f"{PREFIX}PROFILE_IMAGE_MAX_AGE") or 86400))

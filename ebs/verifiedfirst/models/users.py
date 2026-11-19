@@ -2,6 +2,7 @@
 
 from dataclasses import dataclass
 from datetime import datetime, UTC
+from typing import Optional
 
 from verifiedfirst.database import db
 
@@ -18,3 +19,5 @@ class User(db.Model):  # type: ignore
     last_seen: datetime = db.Column(
         db.DateTime, default=lambda: datetime.now(UTC).replace(tzinfo=None)
     )
+    profile_image_url: Optional[str] = db.Column(db.String, nullable=True)
+    profile_image_updated: Optional[datetime] = db.Column(db.DateTime, nullable=True)

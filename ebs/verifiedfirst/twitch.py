@@ -7,7 +7,7 @@ from datetime import datetime, timedelta, UTC
 from flask import current_app
 from requests import Request, Response, Session, codes, post
 from requests.exceptions import RequestException
-from sqlalchemy.exc import NoResultFound, SQLAlchemyError
+from sqlalchemy.exc import IntegrityError, NoResultFound, SQLAlchemyError
 
 from verifiedfirst.models.broadcasters import Broadcaster
 from verifiedfirst.models.firsts import First
@@ -118,6 +118,20 @@ def refresh_auth_token(broadcaster: Broadcaster) -> Broadcaster:
     return broadcaster
 
 
+def format_request_error(exp: RequestException) -> str:
+    """Describe a failed request, including the body of the response if there is one.
+
+    The twitch api explains why a request was rejected in the response body (e.g. which parameter
+    was invalid), which isn't included in the exception message.
+
+    :param exp: exception raised by the request
+    :return: description of the error
+    """
+    if exp.response is None or not exp.response.text:
+        return str(exp)
+    return f"{exp}: {exp.response.text}"
+
+
 def request_twitch_api(access_token: str, request: Request) -> Response:
     """Send request to twitch api.
 
@@ -153,7 +167,7 @@ def request_twitch_api_broadcaster(broadcaster: Broadcaster, request: Request) -
         resp.raise_for_status()
         return resp
     except RequestException as exp:
-        current_app.logger.error("request to twitch api failed: %s", exp)
+        current_app.logger.error("request to twitch api failed: %s", format_request_error(exp))
         if exp.response is None or exp.response.status_code != codes.unauthorized:
             raise exp
 
@@ -186,7 +200,7 @@ def request_twitch_api_app(request: Request) -> Response:
         resp.raise_for_status()
         return resp
     except RequestException as exp:
-        current_app.logger.error("request to twitch api failed: %s", exp)
+        current_app.logger.error("request to twitch api failed: %s", format_request_error(exp))
         if exp.response is None or exp.response.status_code != codes.unauthorized:
             raise exp
 
@@ -708,18 +722,58 @@ def upsert_user(user_id: int, user_name: str) -> User:
     return user
 
 
-def add_first(broadcaster_id: int, user_id: int, user_name: str) -> First:
+def get_first_by_redemption(redemption_id: str) -> First | None:
+    """Get the "first" entry that was added for a specific channel points redemption.
+
+    :param redemption_id: id of the channel points redemption
+    :return: matching First object or None
+    """
+    first = First.query.filter(First.redemption_id == redemption_id).one_or_none()
+    assert isinstance(first, First) or first is None
+    return first
+
+
+def add_first(
+    broadcaster_id: int, user_id: int, user_name: str, redemption_id: str | None = None
+) -> First:
     """Adds a "first" entry to the database.
+
+    Twitch can deliver the same redemption more than once (e.g. retries, or a broadcaster having
+    duplicate eventsubs), so if a first already exists for the redemption id, no new entry is added.
 
     :param broadcaster_id: id of the broadcaster to add the first entry for
     :param user_id: numeric Twitch id of the user who was first
     :param user_name: login name of the user who was first
-    :return: First object that was created
+    :param redemption_id: id of the channel points redemption the first is for
+    :raises IntegrityError: if the first can't be added for a reason other than being a duplicate
+    :return: First object that was created, or the existing one for the redemption
     """
+    if redemption_id is not None:
+        existing_first = get_first_by_redemption(redemption_id)
+        if existing_first is not None:
+            current_app.logger.info("ignoring duplicate redemption_id=%s", redemption_id)
+            return existing_first
+
     upsert_user(user_id, user_name)
-    first = First(broadcaster_id=broadcaster_id, name=user_name, user_id=user_id)
+    first = First(
+        broadcaster_id=broadcaster_id,
+        name=user_name,
+        user_id=user_id,
+        redemption_id=redemption_id,
+    )
     db.session.add(first)
-    db.session.commit()
+    try:
+        db.session.commit()
+    except IntegrityError:
+        # another worker added the same redemption since it was checked above
+        db.session.rollback()
+        existing_first = (
+            get_first_by_redemption(redemption_id) if redemption_id is not None else None
+        )
+        if existing_first is None:
+            raise
+        current_app.logger.info("ignoring duplicate redemption_id=%s", redemption_id)
+        return existing_first
 
     return first
 

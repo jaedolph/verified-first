@@ -167,16 +167,21 @@ def eventsub() -> Response:
         user_id = int(request_data["event"]["user_id"])
         user_name = request_data["event"]["user_login"]
         reward_id = request_data["event"]["reward"]["id"]
+        # the redemption id is the same across every delivery of a redemption, unlike the message
+        # id which differs between eventsubs
+        redemption_id = request_data["event"]["id"]
 
         current_app.logger.info(
-            "adding first for broadcaster_id=%s user_id=%s user_name=%s reward_id=%s",
+            "adding first for broadcaster_id=%s user_id=%s user_name=%s reward_id=%s "
+            "redemption_id=%s",
             broadcaster_id,
             user_id,
             user_name,
             reward_id,
+            redemption_id,
         )
-        # TODO: check reward id is correct, check for duplicate message ids
-        first = twitch.add_first(broadcaster_id, user_id, user_name)
+        # TODO: check reward id is correct
+        first = twitch.add_first(broadcaster_id, user_id, user_name, redemption_id)
 
         return make_response(jsonify(first))
 

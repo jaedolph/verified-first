@@ -13,10 +13,12 @@ from . import defaults
 
 OTHER_CALLBACK_URL = "https://verifiedfirst-test.jaedolph.net/eventsub"
 OTHER_REWARD_ID = "92af127c-7326-4483-a52b-b0da0be61c01"
+# eventsub id stored in the database for an eventsub that no longer exists
+STALE_EVENTSUB_ID = "stale-eventsub-id"
 
 
 def add_broadcaster(  # pylint: disable=missing-type-doc
-    database, broadcaster_id, reward_id=defaults.REWARD_ID, eventsub_id=None
+    database, broadcaster_id, reward_id=defaults.REWARD_ID, eventsub_id=STALE_EVENTSUB_ID
 ):
     """Add a broadcaster to the database.
 
@@ -105,7 +107,7 @@ def test_reconcile_eventsubs(app, init_db, mocker):
     for broadcaster_id in (missing_id, disabled_id, wrong_reward_id):
         add_broadcaster(database, broadcaster_id)
     # an enabled eventsub exists, but it isn't the one stored in the database
-    add_broadcaster(database, wrong_db_id, eventsub_id="stale-eventsub-id")
+    add_broadcaster(database, wrong_db_id)
     # broadcasters without a reward configured are ignored
     add_broadcaster(database, 5, reward_id=None)
     add_broadcaster(database, 6, reward_id="")
@@ -134,6 +136,24 @@ def test_reconcile_eventsubs(app, init_db, mocker):
         (defaults.REWARD_ID, [eventsubs[3]]),
     ]
     assert summary == {"checked": 5, "ok": 1, "repaired": 4}
+
+
+def test_reconcile_eventsubs_no_db_eventsub(app, init_db, mocker):
+    """Test broadcasters with no eventsub stored are only repaired if they have an eventsub."""
+    database = init_db(app)
+    # e.g. a new eventsub was created but storing its id failed
+    add_broadcaster(database, 1, eventsub_id=None)
+    # e.g. the broadcaster revoked authorization, so creating an eventsub would fail
+    add_broadcaster(database, 2, eventsub_id=None)
+
+    eventsubs = [make_eventsub(1)]
+    mock_update_eventsub, _, _ = mock_twitch(mocker, eventsubs)
+
+    summary = reconcile_eventsubs.reconcile_eventsubs()
+
+    mock_update_eventsub.assert_called_once()
+    assert mock_update_eventsub.call_args.args[0].id == 1
+    assert summary == {"checked": 2, "inactive": 1, "repaired": 1}
 
 
 def test_reconcile_eventsubs_other_callback(app, init_db, mocker):
@@ -202,8 +222,25 @@ def test_reconcile_eventsubs_failure(app, init_db, mocker, caplog):
     assert updated_broadcaster_ids(mock_update_eventsub) == [1, 2, 3, 4]
     assert summary == {"checked": 4, "repaired": 1, "unauthorized": 1, "failed": 2}
     assert "could not repair eventsub for broadcaster_id=1: 500 server error" in caplog.text
-    assert "broadcaster_id=2 hasn't authorized the extension: 403 forbidden" in caplog.text
+    assert (
+        "broadcaster_id=2 hasn't authorized the extension, "
+        f"clearing eventsub_id={STALE_EVENTSUB_ID}"
+    ) in caplog.text
     assert "could not repair eventsub for broadcaster_id=3: db down" in caplog.text
+    # only the unauthorized broadcaster's eventsub id is cleared
+    assert database.session.get(Broadcaster, 1).eventsub_id == STALE_EVENTSUB_ID
+    assert database.session.get(Broadcaster, 2).eventsub_id is None
+    assert database.session.get(Broadcaster, 3).eventsub_id == STALE_EVENTSUB_ID
+
+    # the unauthorized broadcaster is skipped on later runs
+    mock_update_eventsub.reset_mock()
+    mock_update_eventsub.side_effect = None
+
+    summary = reconcile_eventsubs.reconcile_eventsubs()
+
+    # update_eventsub is mocked, so broadcaster 4 is repaired again as nothing was stored for it
+    assert updated_broadcaster_ids(mock_update_eventsub) == [1, 3, 4]
+    assert summary == {"checked": 4, "inactive": 1, "repaired": 3}
 
 
 def test_reconcile_eventsubs_pagination(app, init_db, mocker):
@@ -243,11 +280,13 @@ def test_main(app, init_db, mocker, capsys):
 
     mock_update_eventsub.assert_not_called()
     assert capsys.readouterr().out == (
-        "checked: 2, ok: 1, would repair: 1, unauthorized: 0, failed: 0\n"
+        "checked: 2, ok: 1, inactive: 0, would repair: 1, unauthorized: 0, failed: 0\n"
     )
 
     mocker.patch.object(sys, "argv", ["reconcile_eventsubs"])
     reconcile_eventsubs.main()
 
     assert updated_broadcaster_ids(mock_update_eventsub) == [2]
-    assert capsys.readouterr().out == "checked: 2, ok: 1, repaired: 1, unauthorized: 0, failed: 0\n"
+    assert capsys.readouterr().out == (
+        "checked: 2, ok: 1, inactive: 0, repaired: 1, unauthorized: 0, failed: 0\n"
+    )

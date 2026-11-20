@@ -21,4 +21,7 @@ class First(db.Model):  # type: ignore
     )
     broadcaster_id: int = db.Column(db.Integer, nullable=False)
     user_id: Optional[int] = db.Column(db.Integer, db.ForeignKey("twitch_user.id"), nullable=True)
+    # id of the channel points redemption, used to ignore twitch delivering the same redemption more
+    # than once. Firsts added before this was recorded (or by scripts) have no redemption id.
+    redemption_id: Optional[str] = db.Column(db.String, nullable=True, unique=True, index=True)
     user: ClassVar = db.relationship("User", foreign_keys="[First.user_id]")

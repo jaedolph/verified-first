@@ -9,7 +9,7 @@ from urllib.parse import quote
 import pytest
 from requests import Request
 from requests.exceptions import RequestException
-from sqlalchemy.exc import OperationalError
+from sqlalchemy.exc import IntegrityError, OperationalError
 
 from verifiedfirst import twitch
 from verifiedfirst.models.broadcasters import Broadcaster
@@ -119,6 +119,22 @@ def test_refresh_auth_token_403(app, requests_mock, mocker):  # pylint: disable=
         twitch.refresh_auth_token(initial_broadcaster)
 
 
+def test_format_request_error(mocker):
+    """Test format_request_error includes the body of the response, if there is one."""
+    response = mocker.Mock()
+    response.text = '{"error":"Bad Request","status":400,"message":"invalid reward_id"}'
+    assert twitch.format_request_error(RequestException("400 bad request", response=response)) == (
+        '400 bad request: {"error":"Bad Request","status":400,"message":"invalid reward_id"}'
+    )
+
+    response.text = ""
+    assert (
+        twitch.format_request_error(RequestException("400 bad request", response=response))
+        == "400 bad request"
+    )
+    assert twitch.format_request_error(RequestException("timed out")) == "timed out"
+
+
 def test_request_twitch_api(app, requests_mock):
     """Test request_twitch_api wrapper function."""
     url = f"{app.config['TWITCH_API_BASEURL']}/users"
@@ -186,6 +202,7 @@ def test_request_twitch_api_broadcaster_refresh(
     mock_request = mocker.Mock()
     mock_error_response = mocker.Mock()
     mock_error_response.status_code = 401
+    mock_error_response.text = ""
     mock_good_response = mocker.Mock()
 
     test_exception = RequestException("test exception")
@@ -238,6 +255,7 @@ def test_request_twitch_api_broadcaster_refresh_fail(
     mock_request = mocker.Mock()
     mock_error_response = mocker.Mock()
     mock_error_response.status_code = 401
+    mock_error_response.text = ""
 
     test_exception = RequestException("test exception")
     test_exception.response = mock_error_response
@@ -315,6 +333,7 @@ def test_request_twitch_api_app_refresh(app, mocker, caplog):
     mock_request = mocker.Mock()
     mock_error_response = mocker.Mock()
     mock_error_response.status_code = 401
+    mock_error_response.text = ""
     mock_good_response = mocker.Mock()
     test_exception = RequestException("test exception")
     test_exception.response = mock_error_response
@@ -354,6 +373,7 @@ def test_request_twitch_api_app_refresh_fail(app, mocker, caplog):
     mock_request = mocker.Mock()
     mock_error_response = mocker.Mock()
     mock_error_response.status_code = 401
+    mock_error_response.text = ""
     mock_good_response = mocker.Mock()
     test_exception = RequestException("test exception")
     test_exception.response = mock_error_response
@@ -1296,6 +1316,51 @@ def test_add_first(app, init_db, patch_current_time):
         assert first2.user_id == 1002
         assert first2.broadcaster_id == defaults.BROADCASTER_ID
         assert first2.timestamp == datetime(2000, 1, 1, 0, 0, 0)
+
+
+def test_add_first_duplicate_redemption(app, init_db, caplog):
+    """Test a redemption that has already been added isn't added again."""
+    init_db(app)
+    redemption_id = defaults.EVENTSUB_NOTIFICATION_JSON["event"]["id"]
+
+    first = twitch.add_first(defaults.BROADCASTER_ID, 1001, "testuser1", redemption_id)
+    duplicate = twitch.add_first(defaults.BROADCASTER_ID, 1001, "testuser1", redemption_id)
+    other = twitch.add_first(defaults.BROADCASTER_ID, 1001, "testuser1", "other-redemption-id")
+    # firsts without a redemption id (e.g. added by scripts) are never treated as duplicates
+    twitch.add_first(defaults.BROADCASTER_ID, 1001, "testuser1")
+    twitch.add_first(defaults.BROADCASTER_ID, 1001, "testuser1")
+
+    assert duplicate.id == first.id
+    assert other.id != first.id
+    assert first.redemption_id == redemption_id
+    assert First.query.count() == 4
+    assert f"ignoring duplicate redemption_id={redemption_id}" in caplog.text
+
+
+def test_add_first_duplicate_redemption_race(app, init_db, mocker):
+    """Test a redemption added by another worker after it was checked isn't added again."""
+    init_db(app)
+    redemption_id = defaults.EVENTSUB_NOTIFICATION_JSON["event"]["id"]
+    first = twitch.add_first(defaults.BROADCASTER_ID, 1001, "testuser1", redemption_id)
+    first_id = first.id
+
+    # the first check doesn't find the redemption, as if it was added just after the check
+    mocker.patch("verifiedfirst.twitch.get_first_by_redemption", side_effect=[None, first])
+    duplicate = twitch.add_first(defaults.BROADCASTER_ID, 1001, "testuser1", redemption_id)
+
+    assert duplicate.id == first_id
+    assert First.query.count() == 1
+
+
+def test_add_first_integrity_error(app, init_db, mocker):
+    """Test add_first raises an integrity error that isn't caused by a duplicate redemption."""
+    init_db(app)
+    redemption_id = defaults.EVENTSUB_NOTIFICATION_JSON["event"]["id"]
+    twitch.add_first(defaults.BROADCASTER_ID, 1001, "testuser1", redemption_id)
+
+    mocker.patch("verifiedfirst.twitch.get_first_by_redemption", return_value=None)
+    with pytest.raises(IntegrityError):
+        twitch.add_first(defaults.BROADCASTER_ID, 1001, "testuser1", redemption_id)
 
 
 def test_get_firsts_with_user_ids(app, init_db):
